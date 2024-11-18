@@ -1,57 +1,68 @@
-// Mapping categories to responsible individuals
-const categoryMapping = {
-    "Artwork Approval": ["Neha Patel", "Kruti Bilakhia"],
-    "CE Technical File Chapters for EndoSurgery": ["Asma Shaikh", "Chetan Patel", "Rahul Fidai", "Bhavin Choradiya", "Surbhi Patel"],
-    "510(k) EndoSurgery": ["Asma Shaikh", "Chetan Patel"],
-    "CE Technical File Chapters for Healthcare": ["Bittu Jha", "Prem Patil"],
-    "510(k) Healthcare": ["Bittu Jha"],
-    "QMS Setup": ["Neha Patel", "Kruti Bilakhia", "Rahul Fidai"],
-    "Risk Management and Usability": ["Bittu Jha", "Prem Patil", "Neel Naik", "Surbhi Patel"],
-    "Biocompatibility Testing and Biological Report": ["Asma Shaikh", "Niyati Patel"],
-    "Clinical Documentation": ["Shriya and Team", "Senthil and Team"],
-    "PMS/PSUR": ["Aniket Arekar", "Pinki Purohit", "Senthil and Team"],
-    "DCGI Related Work": ["Punita Patel and Team"],
-    "Design File Preparation": ["Bittu Jha", "Surbhi Patel", "Chetan Patel", "Asma Shaikh", "Rahul Fidai", "Neel Naik", "Roshani Upadhyay", "Bhavin Choradiya"]
-};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager's Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Manager's Dashboard</h1>
+    </header>
+    <main>
+        <!-- Task Creation Form -->
+        <section id="task-creation">
+            <h2>Create New Task</h2>
+            <form id="taskForm">
+                <label for="productName">Product Name:</label>
+                <input type="text" id="productName" name="productName" required>
 
-// Function to get the first available person from the category
-function assignPerson(category) {
-    if (categoryMapping[category]) {
-        // Rotate through the available people for the category
-        const assignedPerson = categoryMapping[category].shift();
-        categoryMapping[category].push(assignedPerson); // Rotate to the back of the list
-        return assignedPerson;
-    }
-    return "Unassigned";
-}
+                <label for="category">Category:</label>
+                <select id="category" name="category" required>
+                    <option value="Artwork Approval">Artwork Approval</option>
+                    <option value="CE Technical File Chapters for EndoSurgery">CE Technical File Chapters for EndoSurgery</option>
+                    <option value="510(k) EndoSurgery">510(k) EndoSurgery</option>
+                    <option value="CE Technical File Chapters for Healthcare">CE Technical File Chapters for Healthcare</option>
+                    <option value="510(k) Healthcare">510(k) Healthcare</option>
+                    <option value="QMS Setup">QMS Setup</option>
+                    <option value="Risk Management and Usability">Risk Management and Usability</option>
+                    <option value="Biocompatibility Testing and Biological Report">Biocompatibility Testing and Biological Report</option>
+                    <option value="Clinical Documentation">Clinical Documentation</option>
+                    <option value="PMS/PSUR">PMS/PSUR</option>
+                    <option value="DCGI Related Work">DCGI Related Work</option>
+                    <option value="Design File Preparation">Design File Preparation</option>
+                </select>
 
-// Handle form submission
-document.getElementById("taskForm").addEventListener("submit", function (event) {
-    event.preventDefault(); // Prevent form submission
+                <label for="description">Task Description:</label>
+                <textarea id="description" name="description" required></textarea>
 
-    // Get form data
-    const productName = document.getElementById("productName").value;
-    const category = document.getElementById("category").value;
-    const description = document.getElementById("description").value;
-    const deadline = document.getElementById("deadline").value;
+                <label for="deadline">Deadline:</label>
+                <input type="date" id="deadline" name="deadline" required>
 
-    // Auto-assign person based on category
-    const assignedPerson = assignPerson(category);
+                <button type="submit">Create Task</button>
+            </form>
+        </section>
 
-    // Add task to the table
-    const tableBody = document.getElementById("taskTable").querySelector("tbody");
-    const newRow = document.createElement("tr");
-
-    newRow.innerHTML = `
-        <td>${productName}</td>
-        <td>${category}</td>
-        <td>${description}</td>
-        <td>${deadline}</td>
-        <td>${assignedPerson}</td>
-    `;
-
-    tableBody.appendChild(newRow);
-
-    // Clear the form
-    document.getElementById("taskForm").reset();
-});
+        <!-- Task Overview Table -->
+        <section id="task-overview">
+            <h2>Task Overview</h2>
+            <table id="taskTable">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Deadline</th>
+                        <th>Assigned To</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic task rows will be inserted here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
