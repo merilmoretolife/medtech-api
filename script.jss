@@ -29,16 +29,23 @@ document.getElementById("taskForm").addEventListener("submit", function (event) 
     event.preventDefault(); // Prevent form submission
 
     // Get form data
-    const productName = document.getElementById("productName").value;
+    const productName = document.getElementById("productName").value.trim();
     const category = document.getElementById("category").value;
-    const description = document.getElementById("description").value;
+    const description = document.getElementById("description").value.trim();
     const deadline = document.getElementById("deadline").value;
+
+    // Validate inputs
+    if (!productName || !description || !deadline) {
+        alert("All fields are required!");
+        return;
+    }
 
     // Auto-assign a person based on category
     const assignedPerson = assignPerson(category);
 
     // Add the task to the table
     const tableBody = document.getElementById("taskTable").querySelector("tbody");
+
     const newRow = document.createElement("tr");
 
     newRow.innerHTML = `
