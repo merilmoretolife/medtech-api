@@ -1,3 +1,5 @@
+# main.py
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 import openai
@@ -7,17 +9,18 @@ app = FastAPI()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+
 class DeviceInput(BaseModel):
     deviceName: str
 
-# Home route (optional)
-@app.get("/")
-def read_root():
-    return {"message": "MedTech API is running. Use POST /generate or /biological."}
 
-# Functional and Performance Requirements
+@app.get("/")
+def root():
+    return {"message": "MedTech API is live. Use /generate or /biological."}
+
+
 @app.post("/generate")
-async def generate(input: DeviceInput):
+async def generate_functional(input: DeviceInput):
     prompt = f"""
 You are a regulatory affairs assistant generating structured design input documentation for medical devices.
 
@@ -39,15 +42,19 @@ Provide only the "Functional and Performance Requirements" section of the design
 
 Do not generate any other content.
 """
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return {"result": response["choices"][0]["message"]["content"]}
 
-# Biological and Safety Requirements
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return {"result": response["choices"][0]["message"]["content"]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/biological")
-async def biological(input: DeviceInput):
+async def generate_biological(input: DeviceInput):
     prompt = f"""
 You are a regulatory affairs assistant generating structured design input documentation for medical devices in accordance with ISO 13485, ISO 10993, EU MDR, and US FDA guidelines.
 
@@ -78,8 +85,12 @@ Provide only the "Biological and Safety Requirements" section using this format:
 
 Do not generate unrelated text. Keep structure exact.
 """
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return {"result": response["choices"][0]["message"]["content"]}
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return {"result": response["choices"][0]["message"]["content"]}
+    except Exception as e:
+        return {"error": str(e)}
