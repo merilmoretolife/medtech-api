@@ -79,7 +79,7 @@ Provide only the "Biological and Safety Requirements" section using this format:
 Do not generate unrelated text. Keep structure exact.
 """
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o",
         messages=[{"role": "user", "content": prompt}]
     )
     return {"result": response["choices"][0]["message"]["content"]}
