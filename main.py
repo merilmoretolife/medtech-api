@@ -4,6 +4,9 @@ import openai
 import os
 
 app = FastAPI()
+@app.get("/")
+def read_root():
+    return {"message": "MedTech API is running. Use POST /generate with a deviceName."}
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
