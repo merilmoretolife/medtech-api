@@ -90,7 +90,7 @@ Standards: ISO 13485, 21 CFR Part 820.
         "Statutory and Regulatory Requirements": f"""
 Include:
 1. Indian Regulatory – CDSCO rules, classification (A–D), MD-13, MD-9, ISO 13485.
-2. EU Regulatory – CE Marking, MDR classification, GSPR, Technical File, ISO 13485.
+2. EU Regulatory – CE Marking, Detailed EU MDR classification (Class and Rule) from https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32017R0745, GSPR, Technical File, ISO 13485.
 3. US FDA – Class I/II/III, 510(k)/PMA, QSR (21 CFR Part 820), Establishment Registration.
 Tailor classification and pathways based on device use and risk.
 """
