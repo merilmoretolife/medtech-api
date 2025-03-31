@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from docx import Document as WordDoc
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from io import BytesIO
@@ -37,7 +38,7 @@ def insert_page_number(paragraph):
     run._r.append(instrText)
     run._r.append(fldChar2)
     run._r.append(fldChar3)
-
+    
 app = FastAPI()
 
 # CORS
@@ -148,9 +149,9 @@ async def generate_response(data: DeviceRequest):
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
 
-    # Set global font
+    # Set default font to Helvetica
     style = doc.styles['Normal']
-    style.font.name = 'Calibri'
+    style.font.name = 'Helvetica'
     style.font.size = Pt(12)
 
     section = doc.sections[0]
@@ -165,22 +166,31 @@ async def generate_word(data: DeviceRequest):
     header_table.columns[1].width = Inches(3.5)
     header_table.columns[2].width = Inches(2)
 
-    logo_cell = header_table.cell(0, 0).paragraphs[0]
-    logo_cell.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-    logo_cell.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
+    # Logo (left)
+    logo_cell = header_table.cell(0, 0)
+    logo_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    logo_para = logo_cell.paragraphs[0]
+    logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+    logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
 
-    title_cell = header_table.cell(0, 1).paragraphs[0]
-    title_cell.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    run = title_cell.add_run("Design Input")
+    # Title (center)
+    center_cell = header_table.cell(0, 1)
+    center_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    center_para = center_cell.paragraphs[0]
+    center_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = center_para.add_run("Design Input")
     run.bold = True
     run.font.size = Pt(17)
-    run.font.name = 'Calibri'
+    run.font.name = 'Helvetica'
 
-    doc_number_cell = header_table.cell(0, 2).paragraphs[0]
-    doc_number_cell.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    run = doc_number_cell.add_run(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00")
+    # Doc Number (right)
+    right_cell = header_table.cell(0, 2)
+    right_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    right_para = right_cell.paragraphs[0]
+    right_para.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    run = right_para.add_run(f"Document Number: DI/{data.deviceName[:3].upper()}/001\nRev. 00")
     run.font.size = Pt(11)
-    run.font.name = 'Calibri'
+    run.font.name = 'Helvetica'
 
     # Footer
     footer = section.footer
@@ -188,23 +198,21 @@ async def generate_word(data: DeviceRequest):
     footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = footer_paragraph.add_run("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
     run.font.size = Pt(10)
-    run.font.name = 'Calibri'
+    run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # First page centered title
+    # First page: centered title
     doc.add_paragraph()
-    doc.add_paragraph()
-    for _ in range(10): doc.add_paragraph()  # vertical spacing
-    centered_title = doc.add_paragraph()
-    centered_title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    run = centered_title.add_run(f"Design Input – {data.deviceName}")
+    for _ in range(10): doc.add_paragraph()
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = title_para.add_run(f"Design Input – {data.deviceName}")
     run.bold = True
     run.font.size = Pt(23)
-    run.font.name = 'Calibri'
+    run.font.name = 'Helvetica'
 
+    # TOC page (skip extra break here)
     doc.add_page_break()
-
-    # Table of Contents
     doc.add_heading("Table of Contents", level=1)
     toc_paragraphs = []
     numbered_sections = [f"{i+1}. {title}" for i, title in enumerate(data.sections)]
@@ -212,12 +220,11 @@ async def generate_word(data: DeviceRequest):
         para = doc.add_paragraph()
         para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         run = para.add_run(sec + "." + "." * (80 - len(sec)))
-        run.font.name = 'Calibri'
+        run.font.name = 'Helvetica'
         run.font.size = Pt(12)
         toc_paragraphs.append(para)
-    doc.add_page_break()
 
-    # Prepare OpenAI prompts
+    # Generate sections
     prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
 
     async def fetch(section, prompt):
@@ -232,32 +239,32 @@ async def generate_word(data: DeviceRequest):
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[\*\#]+", "", raw)
-            cleaned = re.sub(r"\n(?=\d+\.)", "\n\n", cleaned)  # add space before subpoints
+            cleaned = re.sub(r"\n(?=\d+\.)", "\n\n", cleaned)
             return section, cleaned
         except Exception as e:
             return section, f"⚠️ Error generating section: {str(e)}"
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # Insert sections
+    # Insert each section
     for i, (section, content) in enumerate(results):
         doc.add_page_break()
+
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         run = heading.add_run(f"{i+1}. {section}")
         run.bold = True
         run.font.size = Pt(15)
-        run.font.name = 'Calibri'
+        run.font.name = 'Helvetica'
 
-        para = doc.add_paragraph(content)
-        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        para.style.font.name = 'Calibri'
-        para.paragraph_format.space_after = Pt(10)
+        body = doc.add_paragraph(content)
+        body.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        body.style.font.name = 'Helvetica'
+        body.paragraph_format.space_after = Pt(10)
 
-        # Update TOC page estimate
-        toc_paragraphs[i].text = f"{i+1}. {data.sections[i]}{'.' * (70 - len(data.sections[i]))} {i+3}"  # +3 to skip cover + TOC pages
+        toc_paragraphs[i].text = f"{i+1}. {data.sections[i]}{'.' * (70 - len(data.sections[i]))} {i+3}"
 
-    # Save Word file
+    # Save the file
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
