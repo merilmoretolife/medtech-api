@@ -47,7 +47,7 @@ app.add_middleware(
     allow_origins=["https://merilmoretolife.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["https://merilmoretolife.github.io"],
+    allow_headers=["*"],
 )
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
