@@ -105,6 +105,21 @@ Tailor classification and pathways based on device use and risk.
 
     return intro + instructions.get(section, "Provide general content.")
 
+@app.post("/generate")
+async def generate_response(data: DeviceRequest):
+    outputs = {}
+    for section in data.sections:
+        prompt = generate_prompt(data.deviceName, section)
+        completion = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        outputs[section] = completion.choices[0].message.content.strip()
+
+    return {"results": outputs}
+
+
 @app.post("/generate-docx")
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
