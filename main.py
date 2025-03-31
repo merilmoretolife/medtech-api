@@ -104,49 +104,56 @@ Tailor classification and pathways based on device use and risk.
 
     return intro + instructions.get(section, "Provide general content.")
 
-@app.post("/generate")
-async def generate_response(data: DeviceRequest):
-    outputs = {}
-    for section in data.sections:
-        prompt = generate_prompt(data.deviceName, section)
-        completion = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
-        )
-        outputs[section] = completion.choices[0].message.content.strip()
-
-    return {"results": outputs}
-    
 @app.post("/generate-docx")
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
-    
+
+    # Title and metadata
     doc.add_heading(f"Design Input – {data.deviceName}", level=1)
     doc.add_paragraph(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00")
     doc.add_paragraph(f"Date: {str(datetime.date.today())}")
 
-    for section in data.sections:
-        prompt = generate_prompt(data.deviceName, section)
-        completion = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
-        )
-        result = completion.choices[0].message.content.strip()
+    # Prepare prompts for all sections
+    prompts = [
+        (section, generate_prompt(data.deviceName, section))
+        for section in data.sections
+    ]
 
+    # Define async function to call OpenAI
+    async def fetch(section, prompt):
+        try:
+            response = await asyncio.wait_for(
+                openai.ChatCompletion.acreate(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5
+                ),
+                timeout=30
+            )
+            return section, response.choices[0].message.content.strip()
+        except Exception as e:
+            return section, f"⚠️ Error generating section: {str(e)}"
+
+    # Run all requests in parallel
+    results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
+
+    # Add each section to Word doc
+    for section, content in results:
         doc.add_page_break()
         doc.add_heading(section, level=2)
-        doc.add_paragraph(result)
+        doc.add_paragraph(content)
 
+    # Final footer
     doc.add_page_break()
     doc.add_paragraph("Confidential Document – Meril Healthcare Pvt. Ltd.")
 
+    # Prepare .docx file for download
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
 
-    return StreamingResponse(file_stream,
+    return StreamingResponse(
+        file_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
             "Content-Disposition": f"attachment; filename=Design_Input_{data.deviceName.replace(' ', '_')}.docx"
