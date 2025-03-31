@@ -18,6 +18,9 @@ import datetime
 
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+import re
 
 def insert_page_number(paragraph):
     run = paragraph.add_run()
@@ -150,76 +153,79 @@ async def generate_response(data: DeviceRequest):
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
 
-    # ✅ Footer on all pages
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+
     section = doc.sections[0]
+
+    # ✅ Footer
     footer = section.footer
     footer_paragraph = footer.paragraphs[0]
     footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = footer_paragraph.add_run("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
     run.font.size = Pt(9)
-
-    # ✅ Add PAGE field for dynamic numbering
+    run.font.name = 'Calibri'
     insert_page_number(footer_paragraph)
 
-
-    # ✅ Create header table inside the actual document header
+    # ✅ Header (logo + centered title + doc number)
     header = section.header
     header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
     header_table.autofit = False
     header_table.columns[0].width = Inches(1.5)
     header_table.columns[1].width = Inches(4.0)
-    header_table.columns[2].width = Inches(2.5)
+    header_table.columns[2].width = Inches(2.0)
 
-    # Logo cell
     logo_cell = header_table.cell(0, 0)
     logo_paragraph = logo_cell.paragraphs[0]
     logo_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-    logo_paragraph.add_run().add_picture("meril_logo.jpg", width=Inches(1.2))
+    logo_paragraph.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
 
-    # Center Title
     center_cell = header_table.cell(0, 1)
     center_paragraph = center_cell.paragraphs[0]
     center_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = center_paragraph.add_run("Design Input")
     run.bold = True
     run.font.size = Pt(16)
+    run.font.name = 'Calibri'
 
-    # Document Info (right)
     right_cell = header_table.cell(0, 2)
     right_paragraph = right_cell.paragraphs[0]
     right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    run = right_paragraph.add_run(
-    f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00\nDate: {str(datetime.date.today())}"
-    )
+    run = right_paragraph.add_run(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00")
     run.font.size = Pt(10)
+    run.font.name = 'Calibri'
 
-    doc.add_paragraph()  # Space after header
+    doc.add_paragraph()  # spacing
 
-    # ✅ Cover Page (centered title)
-    doc.add_page_break()
-    paragraph = doc.add_paragraph()
-    paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    run = paragraph.add_run(f"Design Input – {data.deviceName}")
-    run.bold = True
+    # ✅ Title on first page
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = title_para.add_run(f"Design Input – {data.deviceName}")
     run.font.size = Pt(22)
+    run.font.name = 'Calibri'
+    run.bold = True
 
     doc.add_page_break()
 
     # ✅ Table of Contents
     doc.add_heading("Table of Contents", level=1)
-    toc_map = {}  # Map section → page number (manual)
-
-    # Placeholder TOC (we’ll fill in later)
+    toc_map = {}
     toc_paragraphs = []
-    for section in data.sections:
+
+    for section_title in data.sections:
         para = doc.add_paragraph()
-        run = para.add_run(section)
+        para.style.font.name = 'Calibri'
+        run = para.add_run(section_title + " ")
+        run.font.size = Pt(12)
+        dot_fill = '.' * (100 - len(section_title))
+        run = para.add_run(dot_fill)
         run.font.size = Pt(12)
         toc_paragraphs.append(para)
 
     doc.add_page_break()
 
-    # ✅ Prepare prompts
     prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
 
     async def fetch(section, prompt):
@@ -234,13 +240,13 @@ async def generate_word(data: DeviceRequest):
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"^[\*\#\s]+", "", raw, flags=re.MULTILINE)
+            cleaned = re.sub(r"\n(?=[0-9]+\.)", "\n\n", cleaned)  # Add line between subpoints
             return section, cleaned
         except Exception as e:
             return section, f"⚠️ Error generating section: {str(e)}"
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # ✅ Add sections with page breaks and headings
     for idx, (section, content) in enumerate(results):
         doc.add_page_break()
 
@@ -249,17 +255,18 @@ async def generate_word(data: DeviceRequest):
         run = heading.add_run(section)
         run.bold = True
         run.font.size = Pt(14)
+        run.font.name = 'Calibri'
 
         body = doc.add_paragraph(content)
         body.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        body.style.font.size = Pt(11)
-        toc_map[section] = len(doc.paragraphs)  # crude page estimate
+        body.style.font.name = 'Calibri'
+        body.paragraph_format.space_after = Pt(12)
+        toc_map[section] = len(doc.paragraphs)
 
-    # ✅ Go back and fill in Table of Contents with fake page numbers
+    # Update TOC with fake page numbers
     for para, section in zip(toc_paragraphs, data.sections):
-        para.text = f"{section} ........................................ {toc_map.get(section, '')}"
+        para.text = f"{section}{'.' * (100 - len(section))} {toc_map.get(section, '')}"
 
-    # ✅ Save the document
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
