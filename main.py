@@ -158,7 +158,8 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(9)
 
     # ✅ Add PAGE field for dynamic numbering
-insert_page_number(footer_paragraph)
+    insert_page_number(footer_paragraph)
+
 
     # ✅ Add header table (logo | title | doc info)
     table = doc.add_table(rows=1, cols=3)
