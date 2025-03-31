@@ -9,7 +9,9 @@ import asyncio
 
 from fastapi.responses import StreamingResponse
 from docx import Document as WordDoc
-from docx.shared import Inches
+from docx.shared import Inches, Pt
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml.ns import qn
 from io import BytesIO
 import datetime
 
@@ -124,18 +126,75 @@ async def generate_response(data: DeviceRequest):
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
 
-    # Title and metadata
-    doc.add_heading(f"Design Input – {data.deviceName}", level=1)
-    doc.add_paragraph(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00")
-    doc.add_paragraph(f"Date: {str(datetime.date.today())}")
+    # ✅ Footer on all pages
+    section = doc.sections[0]
+    footer = section.footer
+    footer_paragraph = footer.paragraphs[0]
+    footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = footer_paragraph.add_run("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
+    run.font.size = Pt(9)
 
-    # Prepare prompts for all sections
-    prompts = [
-        (section, generate_prompt(data.deviceName, section))
-        for section in data.sections
-    ]
+    # ✅ Add PAGE field for dynamic numbering
+    fldChar1 = footer_paragraph._element
+    fldChar1.text += "PAGE"
 
-    # Define async function to call OpenAI
+    # ✅ Add header table (logo | title | doc info)
+    table = doc.add_table(rows=1, cols=3)
+    table.autofit = False
+    table.columns[0].width = Inches(1.5)
+    table.columns[1].width = Inches(4.0)
+    table.columns[2].width = Inches(2.5)
+
+    # Logo
+    logo_cell = table.cell(0, 0)
+    logo_paragraph = logo_cell.paragraphs[0]
+    logo_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+    logo_paragraph.add_run().add_picture("meril_logo.jpg", width=Inches(1.2))
+
+    # Center Title
+    center_cell = table.cell(0, 1)
+    center_paragraph = center_cell.paragraphs[0]
+    center_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = center_paragraph.add_run("Design Input")
+    run.bold = True
+    run.font.size = Pt(16)
+
+    # Doc Info
+    right_cell = table.cell(0, 2)
+    right_paragraph = right_cell.paragraphs[0]
+    right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    run = right_paragraph.add_run(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00\nDate: {str(datetime.date.today())}")
+    run.font.size = Pt(10)
+
+    doc.add_paragraph()  # Space after header
+
+    # ✅ Cover Page (centered title)
+    doc.add_page_break()
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = paragraph.add_run(f"Design Input – {data.deviceName}")
+    run.bold = True
+    run.font.size = Pt(22)
+
+    doc.add_page_break()
+
+    # ✅ Table of Contents
+    doc.add_heading("Table of Contents", level=1)
+    toc_map = {}  # Map section → page number (manual)
+
+    # Placeholder TOC (we’ll fill in later)
+    toc_paragraphs = []
+    for section in data.sections:
+        para = doc.add_paragraph()
+        run = para.add_run(section)
+        run.font.size = Pt(12)
+        toc_paragraphs.append(para)
+
+    doc.add_page_break()
+
+    # ✅ Prepare prompts
+    prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
+
     async def fetch(section, prompt):
         try:
             response = await asyncio.wait_for(
@@ -146,24 +205,34 @@ async def generate_word(data: DeviceRequest):
                 ),
                 timeout=30
             )
-            return section, response.choices[0].message.content.strip()
+            raw = response.choices[0].message.content.strip()
+            cleaned = re.sub(r"^[\*\#\s]+", "", raw, flags=re.MULTILINE)
+            return section, cleaned
         except Exception as e:
             return section, f"⚠️ Error generating section: {str(e)}"
 
-    # Run all requests in parallel
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # Add each section to Word doc
-    for section, content in results:
+    # ✅ Add sections with page breaks and headings
+    for idx, (section, content) in enumerate(results):
         doc.add_page_break()
-        doc.add_heading(section, level=2)
-        doc.add_paragraph(content)
 
-    # Final footer
-    doc.add_page_break()
-    doc.add_paragraph("Confidential Document – Meril Healthcare Pvt. Ltd.")
+        heading = doc.add_paragraph()
+        heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        run = heading.add_run(section)
+        run.bold = True
+        run.font.size = Pt(14)
 
-    # Prepare .docx file for download
+        body = doc.add_paragraph(content)
+        body.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        body.style.font.size = Pt(11)
+        toc_map[section] = len(doc.paragraphs)  # crude page estimate
+
+    # ✅ Go back and fill in Table of Contents with fake page numbers
+    for para, section in zip(toc_paragraphs, data.sections):
+        para.text = f"{section} ........................................ {toc_map.get(section, '')}"
+
+    # ✅ Save the document
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
