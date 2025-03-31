@@ -15,12 +15,35 @@ from docx.oxml.ns import qn
 from io import BytesIO
 import datetime
 
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+
+def insert_page_number(paragraph):
+    run = paragraph.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = 'PAGE'
+
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'separate')
+
+    fldChar3 = OxmlElement('w:fldChar')
+    fldChar3.set(qn('w:fldCharType'), 'end')
+
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+    run._r.append(fldChar3)
+
 app = FastAPI()
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://merilmoretolife.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -135,8 +158,7 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(9)
 
     # ✅ Add PAGE field for dynamic numbering
-    fldChar1 = footer_paragraph._element
-    fldChar1.text += "PAGE"
+insert_page_number(footer_paragraph)
 
     # ✅ Add header table (logo | title | doc info)
     table = doc.add_table(rows=1, cols=3)
