@@ -168,7 +168,7 @@ async def generate_word(data: DeviceRequest):
     logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
     logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
 
-    # Center Title
+    # Title
     center_cell = header_table.cell(0, 1)
     center_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     center_para = center_cell.paragraphs[0]
@@ -187,19 +187,19 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(11)
     run.font.name = 'Helvetica'
 
-    # Line under header
+    # Short line under header
     header_line = header.add_paragraph()
     header_line_format = header_line.paragraph_format
     header_line_format.space_before = Pt(2)
     header_line_format.space_after = Pt(2)
-    hr = header_line.add_run("―" * 150)
+    hr = header_line.add_run("―" * 60)
     hr.font.name = 'Helvetica'
-    hr.font.size = Pt(7)
+    hr.font.size = Pt(8)
 
     # Footer
     footer = section.footer
     footer_line = footer.add_paragraph()
-    footer_line.add_run("―" * 150).font.size = Pt(7)
+    footer_line.add_run("―" * 60).font.size = Pt(8)
     footer_line.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     footer_paragraph = footer.add_paragraph()
@@ -209,9 +209,9 @@ async def generate_word(data: DeviceRequest):
     run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # Centered title on first page
+    # First page: centered title (no extra spacing that adds blank 3rd page)
     doc.add_paragraph()
-    for _ in range(10): doc.add_paragraph()
+    for _ in range(6): doc.add_paragraph()
     title_para = doc.add_paragraph()
     title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = title_para.add_run(f"Design Input – {data.deviceName}")
@@ -246,16 +246,15 @@ async def generate_word(data: DeviceRequest):
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[\*\#]+", "", raw)
-            cleaned = re.sub(r"\n(?=\d+\.)", "\n\n", cleaned)
-
-            # Bold subsection titles (like “1. Material of Construction”)
+            cleaned = re.sub(r"\n(?=\d+\.)", "\n", cleaned)  # reduce spacing
             lines = cleaned.split("\n")
+
+            # Bold subsection titles
             new_lines = []
             for line in lines:
-                match = re.match(r"^(\d+\.)(\s*)(.*)", line)
+                match = re.match(r"^(\d+\.\s*)([A-Z].+)", line)
                 if match:
-                    num, space, text = match.groups()
-                    new_lines.append(("bold", f"{num}{space}{text}"))
+                    new_lines.append(("bold", match.group(0)))
                 else:
                     new_lines.append(("normal", line))
             return section, new_lines
@@ -264,8 +263,8 @@ async def generate_word(data: DeviceRequest):
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # Add sections
-    for i, (section, content_lines) in enumerate(results):
+    # Add each section
+    for i, (section, lines) in enumerate(results):
         doc.add_page_break()
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
@@ -274,17 +273,18 @@ async def generate_word(data: DeviceRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        for tag, line in content_lines:
+        for idx, (tag, line) in enumerate(lines):
+            if not line.strip(): continue  # skip empty lines
             para = doc.add_paragraph()
             para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            para.paragraph_format.space_after = Pt(5)
-            run = para.add_run(line)
+            para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
+            run = para.add_run(line.strip())
             run.font.name = 'Helvetica'
             run.font.size = Pt(12)
             if tag == "bold":
                 run.bold = True
 
-    # Save file
+    # Save
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
