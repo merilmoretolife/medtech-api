@@ -23,17 +23,13 @@ def insert_page_number(paragraph):
     run = paragraph.add_run()
     fldChar1 = OxmlElement('w:fldChar')
     fldChar1.set(qn('w:fldCharType'), 'begin')
-
     instrText = OxmlElement('w:instrText')
     instrText.set(qn('xml:space'), 'preserve')
     instrText.text = 'PAGE'
-
     fldChar2 = OxmlElement('w:fldChar')
     fldChar2.set(qn('w:fldCharType'), 'separate')
-
     fldChar3 = OxmlElement('w:fldChar')
     fldChar3.set(qn('w:fldCharType'), 'end')
-
     run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
@@ -149,7 +145,7 @@ async def generate_response(data: DeviceRequest):
 async def generate_word(data: DeviceRequest):
     doc = WordDoc()
 
-    # Set default font to Helvetica
+    # Set font globally
     style = doc.styles['Normal']
     style.font.name = 'Helvetica'
     style.font.size = Pt(12)
@@ -161,19 +157,18 @@ async def generate_word(data: DeviceRequest):
     header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
     header_table.autofit = False
     header_table.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
     header_table.columns[0].width = Inches(2)
     header_table.columns[1].width = Inches(3.5)
     header_table.columns[2].width = Inches(2)
 
-    # Logo (left)
+    # Logo
     logo_cell = header_table.cell(0, 0)
     logo_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     logo_para = logo_cell.paragraphs[0]
     logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
     logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
 
-    # Title (center)
+    # Center Title
     center_cell = header_table.cell(0, 1)
     center_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     center_para = center_cell.paragraphs[0]
@@ -183,7 +178,7 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(17)
     run.font.name = 'Helvetica'
 
-    # Doc Number (right)
+    # Doc Number
     right_cell = header_table.cell(0, 2)
     right_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     right_para = right_cell.paragraphs[0]
@@ -192,16 +187,29 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(11)
     run.font.name = 'Helvetica'
 
+    # Line under header
+    header_line = header.add_paragraph()
+    header_line_format = header_line.paragraph_format
+    header_line_format.space_before = Pt(2)
+    header_line_format.space_after = Pt(2)
+    hr = header_line.add_run("―" * 150)
+    hr.font.name = 'Helvetica'
+    hr.font.size = Pt(7)
+
     # Footer
     footer = section.footer
-    footer_paragraph = footer.paragraphs[0]
+    footer_line = footer.add_paragraph()
+    footer_line.add_run("―" * 150).font.size = Pt(7)
+    footer_line.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+    footer_paragraph = footer.add_paragraph()
     footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = footer_paragraph.add_run("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
     run.font.size = Pt(10)
     run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # First page: centered title
+    # Centered title on first page
     doc.add_paragraph()
     for _ in range(10): doc.add_paragraph()
     title_para = doc.add_paragraph()
@@ -211,20 +219,19 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(23)
     run.font.name = 'Helvetica'
 
-    # TOC page (skip extra break here)
     doc.add_page_break()
+
+    # Table of Contents (no dots, no page numbers)
     doc.add_heading("Table of Contents", level=1)
-    toc_paragraphs = []
     numbered_sections = [f"{i+1}. {title}" for i, title in enumerate(data.sections)]
     for sec in numbered_sections:
-        para = doc.add_paragraph()
-        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        run = para.add_run(sec + "." + "." * (80 - len(sec)))
-        run.font.name = 'Helvetica'
-        run.font.size = Pt(12)
-        toc_paragraphs.append(para)
+        para = doc.add_paragraph(sec)
+        para.style.font.name = 'Helvetica'
+        para.paragraph_format.space_after = Pt(4)
 
-    # Generate sections
+    doc.add_page_break()
+
+    # Prepare OpenAI prompts
     prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
 
     async def fetch(section, prompt):
@@ -240,16 +247,26 @@ async def generate_word(data: DeviceRequest):
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[\*\#]+", "", raw)
             cleaned = re.sub(r"\n(?=\d+\.)", "\n\n", cleaned)
-            return section, cleaned
+
+            # Bold subsection titles (like “1. Material of Construction”)
+            lines = cleaned.split("\n")
+            new_lines = []
+            for line in lines:
+                match = re.match(r"^(\d+\.)(\s*)(.*)", line)
+                if match:
+                    num, space, text = match.groups()
+                    new_lines.append(("bold", f"{num}{space}{text}"))
+                else:
+                    new_lines.append(("normal", line))
+            return section, new_lines
         except Exception as e:
-            return section, f"⚠️ Error generating section: {str(e)}"
+            return section, [("normal", f"⚠️ Error generating section: {str(e)}")]
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # Insert each section
-    for i, (section, content) in enumerate(results):
+    # Add sections
+    for i, (section, content_lines) in enumerate(results):
         doc.add_page_break()
-
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         run = heading.add_run(f"{i+1}. {section}")
@@ -257,14 +274,17 @@ async def generate_word(data: DeviceRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        body = doc.add_paragraph(content)
-        body.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        body.style.font.name = 'Helvetica'
-        body.paragraph_format.space_after = Pt(10)
+        for tag, line in content_lines:
+            para = doc.add_paragraph()
+            para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            para.paragraph_format.space_after = Pt(5)
+            run = para.add_run(line)
+            run.font.name = 'Helvetica'
+            run.font.size = Pt(12)
+            if tag == "bold":
+                run.bold = True
 
-        toc_paragraphs[i].text = f"{i+1}. {data.sections[i]}{'.' * (70 - len(data.sections[i]))} {i+3}"
-
-    # Save the file
+    # Save file
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
