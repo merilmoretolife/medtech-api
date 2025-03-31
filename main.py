@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 import os
+import asyncio
 
 from fastapi.responses import StreamingResponse
 from docx import Document as WordDoc
