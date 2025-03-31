@@ -164,7 +164,7 @@ async def generate_word(data: DeviceRequest):
 
     # ✅ Create header table inside the actual document header
     header = section.header
-    header_table = header.add_table(rows=1, cols=3)
+    header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
     header_table.autofit = False
     header_table.columns[0].width = Inches(1.5)
     header_table.columns[1].width = Inches(4.0)
