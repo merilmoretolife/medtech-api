@@ -162,36 +162,36 @@ async def generate_word(data: DeviceRequest):
     insert_page_number(footer_paragraph)
 
 
-# ✅ Create header table inside the actual document header
-header = section.header
-header_table = header.add_table(rows=1, cols=3)
-header_table.autofit = False
-header_table.columns[0].width = Inches(1.5)
-header_table.columns[1].width = Inches(4.0)
-header_table.columns[2].width = Inches(2.5)
+    # ✅ Create header table inside the actual document header
+    header = section.header
+    header_table = header.add_table(rows=1, cols=3)
+    header_table.autofit = False
+    header_table.columns[0].width = Inches(1.5)
+    header_table.columns[1].width = Inches(4.0)
+    header_table.columns[2].width = Inches(2.5)
 
-# Logo cell
-logo_cell = header_table.cell(0, 0)
-logo_paragraph = logo_cell.paragraphs[0]
-logo_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-logo_paragraph.add_run().add_picture("meril_logo.jpg", width=Inches(1.2))
+    # Logo cell
+    logo_cell = header_table.cell(0, 0)
+    logo_paragraph = logo_cell.paragraphs[0]
+    logo_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+    logo_paragraph.add_run().add_picture("meril_logo.jpg", width=Inches(1.2))
 
-# Center Title
-center_cell = header_table.cell(0, 1)
-center_paragraph = center_cell.paragraphs[0]
-center_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-run = center_paragraph.add_run("Design Input")
-run.bold = True
-run.font.size = Pt(16)
+    # Center Title
+    center_cell = header_table.cell(0, 1)
+    center_paragraph = center_cell.paragraphs[0]
+    center_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = center_paragraph.add_run("Design Input")
+    run.bold = True
+    run.font.size = Pt(16)
 
-# Document Info (right)
-right_cell = header_table.cell(0, 2)
-right_paragraph = right_cell.paragraphs[0]
-right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-run = right_paragraph.add_run(
+    # Document Info (right)
+    right_cell = header_table.cell(0, 2)
+    right_paragraph = right_cell.paragraphs[0]
+    right_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    run = right_paragraph.add_run(
     f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00\nDate: {str(datetime.date.today())}"
-)
-run.font.size = Pt(10)
+    )
+    run.font.size = Pt(10)
 
     doc.add_paragraph()  # Space after header
 
