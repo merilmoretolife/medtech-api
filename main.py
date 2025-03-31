@@ -6,6 +6,12 @@ from pydantic import BaseModel
 import openai
 import os
 
+from fastapi.responses import StreamingResponse
+from docx import Document as WordDoc
+from docx.shared import Inches
+from io import BytesIO
+import datetime
+
 app = FastAPI()
 
 # CORS
@@ -111,3 +117,38 @@ async def generate_response(data: DeviceRequest):
         outputs[section] = completion.choices[0].message.content.strip()
 
     return {"results": outputs}
+    
+@app.post("/generate-docx")
+async def generate_word(data: DeviceRequest):
+    doc = WordDoc()
+    
+    doc.add_heading(f"Design Input – {data.deviceName}", level=1)
+    doc.add_paragraph(f"Document Number: DI/{data.deviceName[:3].upper()}/001 Rev. 00")
+    doc.add_paragraph(f"Date: {str(datetime.date.today())}")
+
+    for section in data.sections:
+        prompt = generate_prompt(data.deviceName, section)
+        completion = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        result = completion.choices[0].message.content.strip()
+
+        doc.add_page_break()
+        doc.add_heading(section, level=2)
+        doc.add_paragraph(result)
+
+    doc.add_page_break()
+    doc.add_paragraph("Confidential Document – Meril Healthcare Pvt. Ltd.")
+
+    file_stream = BytesIO()
+    doc.save(file_stream)
+    file_stream.seek(0)
+
+    return StreamingResponse(file_stream,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename=Design_Input_{data.deviceName.replace(' ', '_')}.docx"
+        }
+    )
