@@ -192,7 +192,7 @@ async def generate_word(data: DeviceRequest):
     header_line_format = header_line.paragraph_format
     header_line_format.space_before = Pt(2)
     header_line_format.space_after = Pt(2)
-    hr = header_line.add_run("―" * 60)
+    hr = header_line.add_run("―" * 54)
     hr.font.name = 'Helvetica'
     hr.font.size = Pt(8)
 
