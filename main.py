@@ -188,19 +188,11 @@ async def generate_word(data: DeviceRequest):
     run.font.name = 'Helvetica'
 
     # Line under header
-    header_line = header.add_paragraph()
-    header_line_format = header_line.paragraph_format
-    header_line_format.space_before = Pt(2)
-    header_line_format.space_after = Pt(2)
-    hr = header_line.add_run("―" * 54)
-    hr.font.name = 'Helvetica'
-    hr.font.size = Pt(8)
+    header.add_paragraph("―" * 54).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     # Footer
     footer = section.footer
-    footer_line = footer.add_paragraph()
-    footer_line.add_run("―" * 54).font.size = Pt(8)
-    footer_line.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    footer.add_paragraph("―" * 54).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     footer_paragraph = footer.add_paragraph()
     footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -209,7 +201,7 @@ async def generate_word(data: DeviceRequest):
     run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # First page: title (no excessive spacing)
+    # First page – title
     doc.add_paragraph()
     for _ in range(6): doc.add_paragraph()
     title_para = doc.add_paragraph()
@@ -219,17 +211,16 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(23)
     run.font.name = 'Helvetica'
 
-    # TOC on page 2
+    # TOC (Page 2)
     doc.add_page_break()
     doc.add_heading("Table of Contents", level=1)
-    numbered_sections = [f"{i+1}. {title}" for i, title in enumerate(data.sections)]
-    for sec in numbered_sections:
-        para = doc.add_paragraph(sec)
+    for i, title in enumerate(data.sections):
+        para = doc.add_paragraph(f"{i+1}. {title}")
         para.style.font.name = 'Helvetica'
         para.paragraph_format.space_after = Pt(4)
 
-    # Page 3 begins content — no page break here
-    doc.add_page_break()
+    # ✅ CONTENT STARTS IMMEDIATELY AFTER TOC
+    # (No page break here — fixes blank page 3 issue)
 
     # Prompts
     prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
@@ -248,7 +239,6 @@ async def generate_word(data: DeviceRequest):
             cleaned = re.sub(r"[\*\#]+", "", raw)
             cleaned = re.sub(r"\n(?=\d+\.)", "\n", cleaned)
 
-            # Parse lines and bold subsection titles
             lines = cleaned.split("\n")
             formatted = []
             for line in lines:
@@ -267,6 +257,7 @@ async def generate_word(data: DeviceRequest):
     for i, (section, lines) in enumerate(results):
         doc.add_page_break()
 
+        # Main section heading
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         run = heading.add_run(f"{i+1}. {section}")
@@ -275,10 +266,10 @@ async def generate_word(data: DeviceRequest):
         run.font.name = 'Helvetica'
 
         for tag, line in lines:
-            if not line.strip():
-                continue
+            if not line.strip(): continue
+
+            # ✅ Add one-line gap before subsection titles
             if tag == "bold":
-                # Add 1 line space before subsection title
                 doc.add_paragraph()
 
             para = doc.add_paragraph()
