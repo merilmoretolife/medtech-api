@@ -51,10 +51,11 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class DeviceRequest(BaseModel):
     deviceName: str
+    intendedUse: str
     sections: list[str]
 
-def generate_prompt(device_name: str, section: str) -> str:
-    intro = f"Generate design input content for the medical device '{device_name}', under the section: '{section}'. Please follow the specified format and adjust details as per the device type.\n\n"
+def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
+    intro = f"Generate design input content for the medical device '{device_name}', intended for '{intended_use}', under the section: '{section}'. Please follow the specified format, adjust details as per the device type and Use globally accepted medtech regulatory language.\n\n"
 
     instructions = {
         "Functional and Performance Requirements": f"""
@@ -132,7 +133,7 @@ Tailor classification and pathways based on device use and risk.
 async def generate_response(data: DeviceRequest):
     outputs = {}
     for section in data.sections:
-        prompt = generate_prompt(data.deviceName, section)
+        prompt = generate_prompt(data.deviceName, data.intendedUse, section)
         completion = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
@@ -230,7 +231,7 @@ async def generate_word(data: DeviceRequest):
         para.paragraph_format.space_after = Pt(4)
 
     # Prompts
-    prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
+    prompts = [(section, generate_prompt(data.deviceName, data.intendedUse, section)) for section in data.sections]
 
     async def fetch(section, prompt):
         try:
