@@ -187,7 +187,7 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(11)
     run.font.name = 'Helvetica'
 
-    # Short line under header
+    # Line under header
     header_line = header.add_paragraph()
     header_line_format = header_line.paragraph_format
     header_line_format.space_before = Pt(2)
@@ -209,7 +209,7 @@ async def generate_word(data: DeviceRequest):
     run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # First page: centered title (no extra spacing that adds blank 3rd page)
+    # First page: title (no excessive spacing)
     doc.add_paragraph()
     for _ in range(6): doc.add_paragraph()
     title_para = doc.add_paragraph()
@@ -219,9 +219,8 @@ async def generate_word(data: DeviceRequest):
     run.font.size = Pt(23)
     run.font.name = 'Helvetica'
 
+    # TOC on page 2
     doc.add_page_break()
-
-    # Table of Contents (no dots, no page numbers)
     doc.add_heading("Table of Contents", level=1)
     numbered_sections = [f"{i+1}. {title}" for i, title in enumerate(data.sections)]
     for sec in numbered_sections:
@@ -229,9 +228,10 @@ async def generate_word(data: DeviceRequest):
         para.style.font.name = 'Helvetica'
         para.paragraph_format.space_after = Pt(4)
 
+    # Page 3 begins content — no page break here
     doc.add_page_break()
 
-    # Prepare OpenAI prompts
+    # Prompts
     prompts = [(section, generate_prompt(data.deviceName, section)) for section in data.sections]
 
     async def fetch(section, prompt):
@@ -246,26 +246,27 @@ async def generate_word(data: DeviceRequest):
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[\*\#]+", "", raw)
-            cleaned = re.sub(r"\n(?=\d+\.)", "\n", cleaned)  # reduce spacing
-            lines = cleaned.split("\n")
+            cleaned = re.sub(r"\n(?=\d+\.)", "\n", cleaned)
 
-            # Bold subsection titles
-            new_lines = []
+            # Parse lines and bold subsection titles
+            lines = cleaned.split("\n")
+            formatted = []
             for line in lines:
                 match = re.match(r"^(\d+\.\s*)([A-Z].+)", line)
                 if match:
-                    new_lines.append(("bold", match.group(0)))
+                    formatted.append(("bold", match.group(0)))
                 else:
-                    new_lines.append(("normal", line))
-            return section, new_lines
+                    formatted.append(("normal", line))
+            return section, formatted
         except Exception as e:
             return section, [("normal", f"⚠️ Error generating section: {str(e)}")]
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # Add each section
+    # Section content
     for i, (section, lines) in enumerate(results):
         doc.add_page_break()
+
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
         run = heading.add_run(f"{i+1}. {section}")
@@ -273,8 +274,13 @@ async def generate_word(data: DeviceRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        for idx, (tag, line) in enumerate(lines):
-            if not line.strip(): continue  # skip empty lines
+        for tag, line in lines:
+            if not line.strip():
+                continue
+            if tag == "bold":
+                # Add 1 line space before subsection title
+                doc.add_paragraph()
+
             para = doc.add_paragraph()
             para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
             para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
@@ -284,7 +290,7 @@ async def generate_word(data: DeviceRequest):
             if tag == "bold":
                 run.bold = True
 
-    # Save
+    # Save file
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
