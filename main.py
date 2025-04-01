@@ -199,7 +199,7 @@ async def generate_word(data: DeviceRequest):
     # Footer
     footer = section.footer
     footer_line = footer.add_paragraph()
-    footer_line.add_run("―" * 60).font.size = Pt(8)
+    footer_line.add_run("―" * 54).font.size = Pt(8)
     footer_line.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     footer_paragraph = footer.add_paragraph()
