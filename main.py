@@ -19,6 +19,9 @@ from docx.oxml.ns import qn
 from io import BytesIO
 import datetime
 import re
+from typing import List
+from pydantic import BaseModel
+
 
 def insert_page_number(paragraph):
     run = paragraph.add_run()
@@ -301,3 +304,24 @@ async def generate_word(data: DeviceRequest):
             "Content-Disposition": f"attachment; filename=Design_Input_{data.deviceName.replace(' ', '_')}.docx"
         }
     )
+
+# In-memory storage for finalized DI entries
+finalized_devices_db = []
+
+class FinalizedDevice(BaseModel):
+    deviceName: str
+    intendedUse: str
+    designInputHtml: str
+    finalizedBy: str
+    diComplete: bool
+    doComplete: bool
+    finalizedAt: str
+
+@app.post("/finalize-di")
+async def save_finalized_di(data: FinalizedDevice):
+    finalized_devices_db.insert(0, data.dict())
+    return {"message": "Saved successfully"}
+
+@app.get("/finalized-devices")
+async def get_finalized_devices() -> List[FinalizedDevice]:
+    return finalized_devices_db
