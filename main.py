@@ -21,7 +21,10 @@ import datetime
 import re
 from typing import List
 from pydantic import BaseModel
-
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import json
+from pathlib import Path
 
 def insert_page_number(paragraph):
     run = paragraph.add_run()
@@ -307,6 +310,14 @@ async def generate_word(data: DeviceRequest):
 
 # In-memory storage for finalized DI entries
 finalized_devices_db = []
+DATA_FILE = Path("finalized_data.json")
+
+@app.on_event("startup")
+async def load_finalized_data():
+    global finalized_devices_db
+    if DATA_FILE.exists():
+        with open(DATA_FILE, "r") as f:
+            finalized_devices_db = json.load(f)
 
 class FinalizedDevice(BaseModel):
     deviceName: str
@@ -319,8 +330,15 @@ class FinalizedDevice(BaseModel):
 
 @app.post("/finalize-di")
 async def save_finalized_di(data: FinalizedDevice):
-    finalized_devices_db.insert(0, data.dict())
+    record = data.dict()
+    finalized_devices_db.insert(0, record)
+
+    # Save to file
+    with open(DATA_FILE, "w") as f:
+        json.dump(finalized_devices_db, f, indent=2)
+
     return {"message": "Saved successfully"}
+
 
 @app.get("/finalized-devices")
 async def get_finalized_devices() -> List[FinalizedDevice]:
