@@ -1,4 +1,5 @@
 
+
 # main.py (Fully Updated)
 
 from fastapi import FastAPI
@@ -10,7 +11,6 @@ import asyncio
 import re
 
 from fastapi.responses import StreamingResponse
-from typing import AsyncGenerator
 from docx import Document as WordDoc
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
@@ -328,28 +328,6 @@ class FinalizedDevice(BaseModel):
     diComplete: bool
     doComplete: bool
     finalizedAt: str
-
-@app.post("/generate-stream")
-async def generate_stream(data: DeviceRequest):
-    section = data.sections[0]  # Only first section streamed
-    prompt = generate_prompt(data.deviceName, data.intendedUse, section)
-
-    async def event_generator() -> AsyncGenerator[str, None]:
-        try:
-            response = await openai.ChatCompletion.acreate(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,
-                stream=True
-            )
-            async for chunk in response:
-                content = chunk.choices[0].delta.get("content")
-                if content:
-                    yield content
-        except Exception as e:
-            yield f"\n⚠️ Error: {str(e)}"
-
-    return StreamingResponse(event_generator(), media_type="text/plain")
 
 @app.post("/finalize-di")
 async def save_finalized_di(data: FinalizedDevice):
