@@ -1,16 +1,8 @@
-
-
-# main.py (Fully Updated)
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
-import openai
-import os
-import asyncio
-import re
-
-from fastapi.responses import StreamingResponse
+from typing import List
 from docx import Document as WordDoc
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
@@ -18,15 +10,50 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from io import BytesIO
-import datetime
+import openai
+import os
+import asyncio
 import re
-from typing import List
-from pydantic import BaseModel
-from fastapi import Request
-from fastapi.responses import JSONResponse
 import json
 from pathlib import Path
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import datetime
 
+app = FastAPI()
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://merilmoretolife.github.io"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# --- Data Models ---
+class DeviceRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    sections: list[str]
+
+class FinalizedDevice(BaseModel):
+    deviceName: str
+    intendedUse: str
+    designInputHtml: str
+    finalizedBy: str
+    diComplete: bool
+    doComplete: bool
+    finalizedAt: str
+
+class DesignOutputRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    section: str
+
+# --- Helpers ---
 def insert_page_number(paragraph):
     run = paragraph.add_run()
     fldChar1 = OxmlElement('w:fldChar')
@@ -42,24 +69,6 @@ def insert_page_number(paragraph):
     run._r.append(instrText)
     run._r.append(fldChar2)
     run._r.append(fldChar3)
-    
-app = FastAPI()
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://merilmoretolife.github.io"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-class DeviceRequest(BaseModel):
-    deviceName: str
-    intendedUse: str
-    sections: list[str]
 
 def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
     intro = f"Generate design input content for the medical device '{device_name}', intended for '{intended_use}', under the section: '{section}'. Please follow the specified format, adjust details as per the device type and Use globally accepted medtech regulatory language.\n\n"
@@ -161,8 +170,9 @@ Include the following clearly, using clean formatting and tables where applicabl
 
 Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
 """
-    return f"Generate appropriate Design Output content for '{section}'."
+    return f"Generate appropriate Design Output content for section: {section}"
 
+# --- /generate Design Input ---
 @app.post("/generate")
 async def generate_response(data: DeviceRequest):
     outputs = {}
@@ -336,16 +346,17 @@ async def generate_word(data: DeviceRequest):
         }
     )
 
+# --- /generate-do (Design Output) ---
 @app.post("/generate-do")
 async def generate_design_output(data: DesignOutputRequest):
     prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
     try:
-        completion = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
+            temperature=0.4,
         )
-        return {"result": completion.choices[0].message.content.strip()}
+        return {"result": response.choices[0].message.content.strip()}
     except Exception as e:
         return {"error": str(e)}
 
@@ -384,27 +395,3 @@ async def save_finalized_di(data: FinalizedDevice):
 @app.get("/finalized-devices")
 async def get_finalized_devices() -> List[FinalizedDevice]:
     return finalized_devices_db
-
-class DesignOutputRequest(BaseModel):
-    deviceName: str
-    intendedUse: str
-    section: str  # Only one section at a time
-
-
-class DesignOutputRequest(BaseModel):
-    deviceName: str
-    intendedUse: str
-    section: str
-
-@app.post("/generate-do")
-async def generate_design_output(data: DesignOutputRequest):
-    prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
-    try:
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-        )
-        return {"result": response.choices[0].message.content.strip()}
-    except Exception as e:
-        return {"error": str(e)}
