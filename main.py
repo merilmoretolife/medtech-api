@@ -153,8 +153,7 @@ Generate the Design Output for a medical device called '{device_name}', intended
 Include the following clearly, using clean formatting and tables where applicable:
 
 1. Material of Construction:
-- Specify exact materials, mention whether it is dyed or undyed, and cite relevant ISO/ASTM standards used for material validation.
-- If the device is a suture, include dye info like D&C Violet No. 2, if applicable.
+- Specify exact materials, and cite relevant ISO/ASTM standards used for material validation in reference to its design input.
 
 2. Component Design and Dimension:
 - Define dimensional requirements and allowable tolerances, preferably in table format.
