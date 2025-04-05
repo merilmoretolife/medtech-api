@@ -136,6 +136,33 @@ Tailor classification and pathways based on device use and risk.
 
     return intro + instructions.get(section, "Provide general content.")
 
+def generate_do_prompt(device_name: str, intended_use: str, section: str) -> str:
+    if section == "Functional and Performance Requirements":
+        return f"""
+Generate the Design Output for a medical device called '{device_name}', intended for '{intended_use}', under the section: 'Functional and Performance Requirements'.
+
+Include the following clearly, using clean formatting and tables where applicable:
+
+1. Material of Construction:
+- Specify exact materials, mention whether it is dyed or undyed, and cite relevant ISO/ASTM standards used for material validation.
+- If the device is a suture, include dye info like D&C Violet No. 2, if applicable.
+
+2. Component Design and Dimension:
+- Define dimensional requirements and allowable tolerances, preferably in table format.
+- Highlight size range if applicable.
+
+3. Wear Characteristics:
+- Provide type of wear tests conducted (e.g., abrasion resistance, friction coefficient) and expected limits or pass criteria.
+- Mention applicable standards.
+
+4. Fatigue Properties:
+- Mention fatigue testing protocols used (e.g., cyclic loading, dynamic testing), with test method, number of cycles, and acceptance criteria.
+- Cite relevant ASTM/ISO standards (e.g., ASTM F2077, ISO 14801).
+
+Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
+"""
+    return f"Generate appropriate Design Output content for '{section}'."
+
 @app.post("/generate")
 async def generate_response(data: DeviceRequest):
     outputs = {}
@@ -309,6 +336,19 @@ async def generate_word(data: DeviceRequest):
         }
     )
 
+@app.post("/generate-do")
+async def generate_design_output(data: DesignOutputRequest):
+    prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        return {"result": completion.choices[0].message.content.strip()}
+    except Exception as e:
+        return {"error": str(e)}
+
 # In-memory storage for finalized DI entries
 finalized_devices_db = []
 DATA_FILE = Path("finalized_data.json")
@@ -344,3 +384,21 @@ async def save_finalized_di(data: FinalizedDevice):
 @app.get("/finalized-devices")
 async def get_finalized_devices() -> List[FinalizedDevice]:
     return finalized_devices_db
+
+class DesignOutputRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    section: str  # Only one section at a time
+
+@app.post("/generate-do")
+async def generate_design_output(data: DesignOutputRequest):
+    prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+        return {"result": response.choices[0].message.content.strip()}
+    except Exception as e:
+        return {"error": str(e)}
