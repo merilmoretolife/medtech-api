@@ -390,6 +390,12 @@ class DesignOutputRequest(BaseModel):
     intendedUse: str
     section: str  # Only one section at a time
 
+
+class DesignOutputRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    section: str
+
 @app.post("/generate-do")
 async def generate_design_output(data: DesignOutputRequest):
     prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
