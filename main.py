@@ -191,6 +191,9 @@ Only include one subsection:
 - Do not include any notes or extra text outside the table.
 """
 
+    # Default fallback
+    return f"Generate appropriate Design Output content for section: {section}"
+    
 # --- /generate Design Input ---
 @app.post("/generate")
 async def generate_response(data: DeviceRequest):
