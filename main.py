@@ -171,6 +171,25 @@ Base the output on relevant real standards like USP, ISO, ASTM. Include tables w
 """
     return f"Generate appropriate Design Output content for section: {section}"
 
+if section == "Biological and Safety Requirements":
+    return f"""
+Generate the Design Output for a medical device called '{device_name}', intended for '{intended_use}', under the section: 'Biological and Safety Requirements'.
+
+Only include one subsection:
+
+## 1. Biocompatibility Tests Requirements
+
+- Based on the nature and duration of body contact, list all required biocompatibility tests as per ISO 10993-1:2018.
+- Format the information as a markdown table with the following columns:
+
+| Sr. No. | Standard Reference | Study Name | Study No. |
+|---------|--------------------|------------|-----------|
+
+- Include standard numbers (e.g., ISO 10993-5:2009, USP <87>, USP <88>, etc...).
+- Leave the "Study No." column blank.
+- Do not include any notes or extra text outside the table.
+"""
+
 # --- /generate Design Input ---
 @app.post("/generate")
 async def generate_response(data: DeviceRequest):
