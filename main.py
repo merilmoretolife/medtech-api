@@ -400,6 +400,8 @@ class FinalizedDevice(BaseModel):
     diComplete: bool
     doComplete: bool
     finalizedAt: str
+    sections: list[str] 
+
 
 @app.post("/finalize-di")
 async def save_finalized_di(data: FinalizedDevice):
