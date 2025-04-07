@@ -171,9 +171,10 @@ Include the following clearly, using clean formatting and tables where applicabl
 Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
 """
     return f"Generate appropriate Design Output content for section: {section}"
+    
 
-if section == "Biological and Safety Requirements":
-    return f"""
+    elif section == "Biological and Safety Requirements":
+        return f"""
 Generate the Design Output for a medical device called '{device_name}', intended for '{intended_use}', under the section: 'Biological and Safety Requirements'.
 
 Only include one subsection:
