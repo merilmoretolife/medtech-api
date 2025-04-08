@@ -79,8 +79,7 @@ def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
 Include the following:
 1. Material of Construction – List main materials and cite relevant ASTM/ISO standards based on the device type.
 2. Component Design and Dimension – Define critical design features and tolerances.
-3. Wear Characteristics – Specify wear resistance needs and applicable tests.
-4. Fatigue Properties – Detail expected cyclic loads and fatigue test protocols.
+3. Mechanical Properties like Wear Characteristics, Fatigue, Tensile, etc. with relevant/applicable ISO/ASTM standards.
 Tailor content based on whether the device is an implant, instrument, or external device.
 """,
 
@@ -160,13 +159,9 @@ Include the following clearly, using clean formatting and tables where applicabl
 - Define dimensional requirements and allowable tolerances, preferably in table format.
 - Highlight size range if applicable.
 
-3. Wear Characteristics:
-- Provide type of wear tests conducted (e.g., abrasion resistance, friction coefficient) and expected limits or pass criteria.
+3. Mechanical Properties:
+- Like Wear Characteristics, Fatigue, Tensile, etc. conducted and expected limits, number of cycles, or acceptance criteria.
 - Mention applicable standards.
-
-4. Fatigue Properties:
-- Mention fatigue testing protocols used (e.g., cyclic loading, dynamic testing), with test method, number of cycles, and acceptance criteria.
-- Cite relevant ASTM/ISO standards (e.g., ASTM F2077, ISO 14801).
 
 Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
 """
