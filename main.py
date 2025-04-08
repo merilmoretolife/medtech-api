@@ -179,7 +179,8 @@ Only include one subsection:
 
 ## 1. Biocompatibility Tests Requirements
 
-- Based on the nature and duration of body contact, list all required biocompatibility tests as per ISO 10993-1:2018.
+- Inject this statement everytime before table: "Based on the nature and duration of body contact, following is the list of all required biocompatibility tests as per ISO 10993-1."
+- Based on the nature and duration of body contact, following is the list of all required biocompatibility tests as per ISO 10993-1:2018.
 - Format the information as a markdown table with the following columns:
 
 | Sr. No. | Standard Reference | Study Name | Study No. |
