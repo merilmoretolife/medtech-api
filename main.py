@@ -79,7 +79,7 @@ def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
 Include the following:
 1. Material of Construction – List main materials and cite relevant ASTM/ISO standards based on the device type.
 2. Component Design and Dimension – Define critical design features and tolerances.
-3. Mechanical Properties and tests with relevant/applicable ISO/ASTM standards.
+3. Mechanical Properties and tests with relevant/applicable USP/ISO/ASTM,etc. standards.
 Tailor content based on whether the device is an implant, instrument, or external device.
 """,
 
@@ -160,8 +160,8 @@ Include the following clearly, using clean formatting and tables where applicabl
 - Highlight size range if applicable.
 
 3. Mechanical Properties:
-- Applicable Mechanical Properties and Tests conducted and expected limits, number of cycles, or acceptance criteria.
-- Mention applicable standards.
+- Applicable Mechanical Properties and Tests conducted and expected limits or acceptance criteria.
+- Mention applicable standards - USP/ISO/ASTM.
 
 Consider Design Input for giving Output Results.
 Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
