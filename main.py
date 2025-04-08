@@ -170,7 +170,7 @@ Include the following clearly, using clean formatting and tables where applicabl
 
 Base the output on relevant real standards like USP, ISO, ASTM. Include tables with actual parameter ranges (e.g., tensile strength by USP size). Avoid generalizations.
 """
-    
+
     elif section == "Biological and Safety Requirements":
         return f"""
 Generate the Design Output for a medical device called '{device_name}', intended for '{intended_use}', under the section: 'Biological and Safety Requirements'.
@@ -179,8 +179,7 @@ Only include one subsection:
 
 ## 1. Biocompatibility Tests Requirements
 
-- Inject this statement everytime before table: "Based on the nature and duration of body contact, following is the list of all required biocompatibility tests as per ISO 10993-1."
-- Based on the nature and duration of body contact, following is the list of all required biocompatibility tests as per ISO 10993-1:2018.
+- Inject this statement every time before table: "Based on the nature and duration of body contact, following is the list of all required biocompatibility tests as per ISO 10993-1."
 - Format the information as a markdown table with the following columns:
 
 | Sr. No. | Standard Reference | Study Name | Study No. |
@@ -190,10 +189,6 @@ Only include one subsection:
 - Leave the "Study No." column blank.
 - Do not include any notes or extra text outside the table.
 """
-
-    else:
-        return f"Generate appropriate Design Output content for section: {section}"
-
 
     elif section == "Packaging and Shipping Requirements":
         return f"""
@@ -228,8 +223,43 @@ Mention the following:
 The packaging configuration must ensure maintenance of sterility, physical integrity, and resistance during transport.
 """
 
+    elif section == "Labeling and IFU Requirements":
+        return f"""
+Generate the Design Output for the section 'Labeling and IFU Requirements' for the device '{device_name}', intended for '{intended_use}'.
+
+This section must include label content, relevant labeling standards, and what will be included in the IFU or e-IFU. Format clearly.
+"""
+
+    elif section == "Sterilization Requirements":
+        return f"""
+Generate the Design Output for the section 'Sterilization Requirements' for the device '{device_name}', intended for '{intended_use}'.
+
+Mention sterilization method (EO, gamma, steam, etc.), validation approach, applicable standards (ISO 11135, ISO 11137, USP <71>, <85>), and test protocols.
+"""
+
+    elif section == "Stability / Shelf Life Requirements":
+        return f"""
+Generate the Design Output for the section 'Stability / Shelf Life Requirements' for the device '{device_name}', intended for '{intended_use}'.
+
+Include aging studies (real-time and accelerated), packaging integrity over time, and applicable standards like ASTM F1980.
+"""
+
+    elif section == "Manufacturing Requirements":
+        return f"""
+Generate the Design Output for the section 'Manufacturing Requirements' for the device '{device_name}', intended for '{intended_use}'.
+
+List facility requirements (GMP, ISO Class 8), cleanroom specs, QC infrastructure, and validation of processes and equipment.
+"""
+
+    elif section == "Statutory and Regulatory Requirements":
+        return f"""
+Generate the Design Output for the section 'Statutory and Regulatory Requirements' for the device '{device_name}', intended for '{intended_use}'.
+
+Summarize applicable regulatory pathways (CDSCO, EU MDR, US FDA), classification, and conformance to ISO 13485, 21 CFR Part 820, GSPR, etc.
+"""
+
     else:
-        return f"Generate appropriate Design Output content for the section: {section}, for a medical device called '{device_name}' with intended use '{intended_use}'. Use regulatory language and standards-based specifications where applicable."
+        return f"Generate appropriate Design Output content for section: '{section}' for a device named '{device_name}' with intended use '{intended_use}'."
 
 # --- /generate Design Input ---
 @app.post("/generate")
