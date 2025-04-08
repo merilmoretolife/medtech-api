@@ -193,7 +193,44 @@ Only include one subsection:
 
     else:
         return f"Generate appropriate Design Output content for section: {section}"
-    
+
+
+    elif section == "Packaging and Shipping Requirements":
+        return f"""
+Generate the Design Output for a medical device called '{device_name}', intended for '{intended_use}', under the section: 'Packaging and Shipping Requirements'.
+
+Include a clear, product-specific packaging configuration (e.g., for surgical sutures). Mention:
+
+1. Primary Packaging: e.g., suture wound in 8-shape, in paper/plastic tray, etc.
+2. Secondary Packaging: pouch (e.g., aluminum), and box with IFU.
+3. Sterility Maintenance: mention compatibility with sterilization and shelf life.
+4. Qualification Tests: include the table below based on ASTM and USP standards.
+5. Transportation Tests: include all relevant ASTM and IS references.
+
+### Packaging Qualification Tests
+
+| Parameter        | Acceptance Criteria  |
+|------------------|----------------------|
+| Seal Strength    | ≥ 2N                 |
+| Seal Width       | ≥ 5mm                |
+| Seal Integrity   | No Leakage           |
+| Sterility        | USP <71>             |
+
+### Transportation Tests
+
+Mention the following:
+- ASTM D4169-16: Performance Testing of Shipping Containers and Systems
+- ASTM D5276: Drop Test of Loaded Containers by Free Fall
+- ASTM D999: Vibration Testing of Shipping Containers
+- IS 7028-4: Vertical Impact Drop Test
+- IS 7028-2: Vibration Test at Fixed Low Frequency
+
+The packaging configuration must ensure maintenance of sterility, physical integrity, and resistance during transport.
+"""
+
+    else:
+        return f"Generate appropriate Design Output content for the section: {section}, for a medical device called '{device_name}' with intended use '{intended_use}'. Use regulatory language and standards-based specifications where applicable."
+
 # --- /generate Design Input ---
 @app.post("/generate")
 async def generate_response(data: DeviceRequest):
