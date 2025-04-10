@@ -54,6 +54,13 @@ class DesignOutputRequest(BaseModel):
     intendedUse: str
     section: str
 
+class UpdateRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    section: str
+    currentContent: str
+    remark: str
+
 # --- Helpers ---
 def insert_page_number(paragraph):
     run = paragraph.add_run()
@@ -481,6 +488,28 @@ async def save_finalized_di(data: FinalizedDevice):
 @app.get("/finalized-devices")
 async def get_finalized_devices() -> List[FinalizedDevice]:
     return finalized_devices_db
+
+@app.post("/update-section")
+async def update_section(data: UpdateRequest):
+    prompt = f"""Revise the following Design Input content for the medical device '{data.deviceName}', intended for '{data.intendedUse}', under the section '{data.section}'.
+
+Only make precise updates based on the user remark provided below. Do not rewrite the entire section. Only modify or remove the specific sentence or subsection as per the remark. Maintain the original structure.
+
+User Remark:
+{data.remark}
+
+Current Section Content:
+{data.currentContent}
+"""
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        return {"result": response.choices[0].message.content.strip()}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/regenerate-section")
 async def regenerate_with_remark(data: DesignOutputRequest, remark: str = ""):
