@@ -227,7 +227,7 @@ The packaging configuration must ensure maintenance of sterility, physical integ
 """
 
     elif section == "Labeling and IFU Requirements":
-    return f"""
+        return f"""
 Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Labeling and IFU Requirements'.
 
 1. **Applicable Labeling Standards**  
