@@ -227,10 +227,40 @@ The packaging configuration must ensure maintenance of sterility, physical integ
 """
 
     elif section == "Labeling and IFU Requirements":
-        return f"""
-Generate the Design Output for the section 'Labeling and IFU Requirements' for the device '{device_name}', intended for '{intended_use}'.
+    return f"""
+Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Labeling and IFU Requirements'.
 
-This section must include label content, relevant labeling standards, and what will be included in the IFU or e-IFU. Format clearly.
+1. **Applicable Labeling Standards**  
+Mention the use of the following standards and regulations:
+- EN ISO 15223-1: Medical devices — Symbols to be used with medical device labels, labeling, and information to be supplied  
+- ISO 20417:2021: Medical devices — Information to be supplied by the manufacturer  
+- 21 CFR Part 801: Labeling requirements by US FDA  
+- Regulation (EU) 2021/2226: Requirements for electronic Instructions for Use (e-IFU)  
+
+2. **Labeling Strategy**  
+Explain labeling on:
+- **Primary Pack** (e.g., Tyvek lid, blister, pouch)
+- **Secondary Pack** (e.g., carton or box)
+- **IFU** (paper and/or e-IFU)
+Clarify symbols used, regional considerations, and where each type of information will appear.
+
+3. **Labeling Content Table**  
+Include a sample markdown table like the one below (add/remove rows based on the device type). Use ✓ for applicable, X for not applicable.
+
+| Sr. No. | Labelling Requirement       | Primary Pack | Secondary Pack | IFU |
+|---------|------------------------------|--------------|----------------|-----|
+| 1       | Proprietary name of device   | ✓            | ✓              | ✓   |
+| 2       | Description of the device    | ✓            | ✓              | ✓   |
+| 3       | Intended Use                 | X            | ✓              | ✓   |
+| 4       | Storage Conditions           | X            | ✓              | ✓   |
+| 5       | Sterilization Method         | ✓            | ✓              | ✓   |
+| ...     | ...                          | ...          | ...            | ... |
+
+⚠️ *Note: The above table is illustrative. Actual fields must be tailored per device category, risk class, and market-specific requirements.*
+
+4. **e-IFU Compliance**  
+- Mention if e-IFU is applicable and the conditions under Regulation (EU) 2021/2226.
+- Describe the access method (e.g., QR code, website), and ensure redundancy in case of digital access failure.
 """
 
     elif section == "Sterilization Requirements":
