@@ -265,9 +265,52 @@ Include a sample markdown table like the one below (add/remove rows based on the
 
     elif section == "Sterilization Requirements":
         return f"""
-Generate the Design Output for the section 'Sterilization Requirements' for the device '{device_name}', intended for '{intended_use}'.
+Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Sterilization Requirements'.
 
-Mention sterilization method (EO, gamma, steam, etc.), validation approach, applicable standards (ISO 11135, ISO 11137, USP <71>, <85>), and test protocols.
+Tailor the output based on the device’s nature, material, and packaging. Mention selected sterilization method(s), applicable standards, test requirements, and acceptance criteria. Also include bioburden, endotoxins, and residuals where applicable.
+
+Include the following:
+
+1. **Selected Sterilization Method(s)**  
+- Clearly state the primary and (if applicable) secondary sterilization methods used for the device.  
+- Example methods: Gamma Irradiation, Ethylene Oxide (EO), Steam, Dry Heat, etc.
+
+2. **Applicable Standards for Sterilization**  
+List only relevant standards (e.g.,):  
+- EN ISO 11135:2014 (Ethylene Oxide)  
+- EN ISO 11737-1 & 11737-2 (Bioburden & Sterility Testing)  
+- EN ISO 20857 (Dry Heat)  
+- EN ISO 11137-1/2 (Gamma)  
+- USP <71>, <85>, <61>, <62>  
+
+3. **Bioburden Test Requirements**  
+Include a table like the one below if bioburden is applicable:
+
+| Parameter                  | Acceptance Criteria      |
+|----------------------------|--------------------------|
+| Total Aerobic Viable Count | ≤ 1000 cfu/sample        |
+| Total Fungal Count         | ≤ 100 cfu/sample         |
+
+4. **Sterility Test / SAL**  
+- Sterility assurance level must comply with a minimum SAL of 10⁻⁶.  
+- Sterility to be confirmed as per USP <71> or ISO 11737-2.  
+
+5. **Bacterial Endotoxin Limits**  
+- State if applicable:  
+  Example: Bacterial endotoxin level must not exceed 10 EU/device, as per USP <85>.
+
+6. **Residuals (for EO sterilized devices)**  
+If EO sterilization is used, include a table:
+
+| Residual Component       | Maximum Limit (per device) |
+|--------------------------|----------------------------|
+| Ethylene Oxide (EO)      | ≤ 4 mg                     |
+| Ethylene Chlorhydrin     | ≤ 9 mg                     |
+| Ethylene Glycol (EG)     | ≤ 9 mg                     |
+
+Explain that these limits are per ISO 10993-7 for EO residuals.
+
+Summarize how the sterilization approach aligns with device material, intended use, and packaging configuration.
 """
 
     elif section == "Stability / Shelf Life Requirements":
