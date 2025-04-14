@@ -315,10 +315,35 @@ Summarize how the sterilization approach aligns with device material, intended u
 
     elif section == "Stability / Shelf Life Requirements":
         return f"""
-Generate the Design Output for the section 'Stability / Shelf Life Requirements' for the device '{device_name}', intended for '{intended_use}'.
+Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Stability / Shelf Life Requirements'.
 
-Include aging studies (real-time and accelerated), packaging integrity over time, and applicable standards like ASTM F1980.
+Focus on how the shelf life of the device is validated and established. Tailor the output based on product type (sterile, implant, suture, etc.).
+
+Include the following:
+
+1. **Study References and Guidelines**  
+- ICH Q1A(R2): Stability Testing of New Drug Substances and Products  
+- ASTM F1980: Guide for Accelerated Aging of Sterile Barrier Systems  
+- ISO 11607-1: Packaging for Terminally Sterilized Medical Devices
+
+2. **Accelerated Aging Study**  
+- State test conditions: 50°C ± 2°C and 75% RH ± 5% RH  
+- Duration of study and intervals for testing (e.g., 1, 2, 3 months)  
+- Acceptance criteria: critical parameters (e.g., sterility, tensile strength, packaging seal integrity) must remain within limits
+
+3. **Real-Time Shelf Life Study**  
+- Storage conditions: 30°C ± 2°C and 65% RH ± 5% RH  
+- State intervals for evaluation (e.g., 3, 6, 9, 12 months)  
+- Confirm that packaging and device performance are monitored
+
+4. **Establishing Shelf Life**  
+- Based on validated results of accelerated and real-time data  
+- Final assigned shelf life (in months/years)  
+- Mention if the shelf life is applicable to both packaging and device
+
+Conclude how the validated stability studies justify the claimed shelf life in the labeling and regulatory documents.
 """
+
 
     elif section == "Manufacturing Requirements":
         return f"""
@@ -360,10 +385,60 @@ Emphasize how the manufacturing infrastructure aligns with design input and the 
 
     elif section == "Statutory and Regulatory Requirements":
         return f"""
-Generate the Design Output for the section 'Statutory and Regulatory Requirements' for the device '{device_name}', intended for '{intended_use}'.
+Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Statutory and Regulatory Requirements'.
 
-Summarize applicable regulatory pathways (CDSCO, EU MDR, US FDA), classification, and conformance to ISO 13485, 21 CFR Part 820, GSPR, etc.
+Summarize applicable regulatory requirements in the following structure:
+
+---
+
+## 1. Indian Regulatory Requirements
+
+Include:
+- Manufacturing License (Form MD-9 or MD-5 depending on class)
+- Factory License
+- Quality Management System (ISO 13485:2016)
+
+### Table: Indian Regulatory Compliance
+
+| Sr. No. | Requirements             | Source / Guideline                                                                 | Process Description            |
+|---------|--------------------------|-------------------------------------------------------------------------------------|--------------------------------|
+| 1       | Manufacturing License (Form MD-9 or Form MD-5) | CDSCO Online Portal: https://cdscomdonline.gov.in/NewMedDev/Homepage               | Application & Approval         |
+| 2       | Factory License          | https://dish.gujarat.gov.in/new-factory-license-application.htm                     | Factory Setup Compliance       |
+| 3       | ISO 13485:2016 QMS       | ISO 13485:2016                                                                      | QMS Documentation & Certification |
+
+---
+
+## 2. European Union – CE Marking
+
+Summarize CE regulatory pathway under EU MDR (Regulation (EU) 2017/745). Highlight:
+
+- CE Certification
+- Technical File development
+- Conformity assessment route
+
+### Table: EU MDR Compliance
+
+| Sr. No. | Requirement      | Source / Regulation                           | Process Description        |
+|---------|------------------|-----------------------------------------------|----------------------------|
+| 1       | CE Certification | Regulation (EU) 2017/745 – EU MDR              | Technical File Preparation, Notified Body Involvement |
+
+---
+
+## 3. United States – US FDA
+
+Mention applicable US FDA pathway (510(k), PMA, or Exempt) and QSR compliance.
+
+### Table: USFDA Compliance
+
+| Sr. No. | Requirement | Source / Guideline                        | Process Description            |
+|---------|-------------|-------------------------------------------|--------------------------------|
+| 1       | 510(k) Submission | USFDA Medical Device Portal: https://www.fda.gov/medical-devices | Dossier Preparation and Submission |
+
+---
+
+Ensure that appropriate classification and regulatory strategy is mapped based on device risk, region, and market launch plan. Cite ISO 13485 and 21 CFR Part 820 for QMS alignment.
 """
+
 
     else:
         return f"Generate appropriate Design Output content for section: '{section}' for a device named '{device_name}' with intended use '{intended_use}'."
