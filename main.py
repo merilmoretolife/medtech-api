@@ -278,7 +278,7 @@ Include aging studies (real-time and accelerated), packaging integrity over time
 """
 
    elif section == "Manufacturing Requirements":
-       return f"""
+        return f"""
 Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Manufacturing Requirements'.
 
 Base the output on applicable design input and general good manufacturing practices, especially for cleanroom-class devices or sterile implants. Consider variations based on device type.
