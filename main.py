@@ -389,7 +389,6 @@ Generate the Design Output for the medical device '{device_name}', intended for 
 
 Summarize applicable regulatory requirements in the following structure:
 
----
 
 ## 1. Indian Regulatory Requirements
 
@@ -406,7 +405,7 @@ Include:
 | 2       | Factory License          | https://dish.gujarat.gov.in/new-factory-license-application.htm                     | Factory Setup Compliance       |
 | 3       | ISO 13485:2016 QMS       | ISO 13485:2016                                                                      | QMS Documentation & Certification |
 
----
+
 
 ## 2. European Union – CE Marking
 
@@ -422,7 +421,6 @@ Summarize CE regulatory pathway under EU MDR (Regulation (EU) 2017/745). Highlig
 |---------|------------------|-----------------------------------------------|----------------------------|
 | 1       | CE Certification | Regulation (EU) 2017/745 – EU MDR              | Technical File Preparation, Notified Body Involvement |
 
----
 
 ## 3. United States – US FDA
 
@@ -434,7 +432,7 @@ Mention applicable US FDA pathway (510(k), PMA, or Exempt) and QSR compliance.
 |---------|-------------|-------------------------------------------|--------------------------------|
 | 1       | 510(k) Submission | USFDA Medical Device Portal: https://www.fda.gov/medical-devices | Dossier Preparation and Submission |
 
----
+
 
 Ensure that appropriate classification and regulatory strategy is mapped based on device risk, region, and market launch plan. Cite ISO 13485 and 21 CFR Part 820 for QMS alignment.
 """
