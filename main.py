@@ -277,11 +277,41 @@ Generate the Design Output for the section 'Stability / Shelf Life Requirements'
 Include aging studies (real-time and accelerated), packaging integrity over time, and applicable standards like ASTM F1980.
 """
 
-    elif section == "Manufacturing Requirements":
-        return f"""
-Generate the Design Output for the section 'Manufacturing Requirements' for the device '{device_name}', intended for '{intended_use}'.
+   elif section == "Manufacturing Requirements":
+       return f"""
+Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Manufacturing Requirements'.
 
-List facility requirements (GMP, ISO Class 8), cleanroom specs, QC infrastructure, and validation of processes and equipment.
+Base the output on applicable design input and general good manufacturing practices, especially for cleanroom-class devices or sterile implants. Consider variations based on device type.
+
+Include the following:
+
+1. **Facility Infrastructure and Layout**  
+- Describe requirements for the premises including wall, floor, ceiling finishes (impervious, epoxy-coated, non-flaking).  
+- Reference design elements such as coving, GMP zoning, and drainless layouts where applicable.  
+
+2. **Cleanroom Classification and Environment Control**  
+- Specify cleanroom ISO classes based on the device’s exposure and critical operations (e.g., ISO Class 8 or better for sterile steps).  
+- Detail HVAC/air handling systems, number of air changes per hour, pressure differentials, HEPA filter use.
+
+3. **Equipment and Utilities**  
+- List critical equipment for production and testing (e.g., melting, molding, sealing for bone wax; injection molding for polymer; laser welding, etc.).  
+- Ensure GMP compliance of equipment (e.g., SS316 construction, cleanability, calibration, and validation needs).
+
+4. **Sanitation and Housekeeping**  
+- Describe cleaning schedules, disinfectant rotation, cleaning validation if applicable, and documentation control.  
+- Mention pest control, gowning procedures, and personnel hygiene measures.
+
+5. **Storage and Material Handling**  
+- Outline raw material and finished goods storage requirements — include temperature/humidity control, segregation, FIFO/FEFO logic.
+
+6. **Quality Control (QC) and Microbiological Testing**  
+- Describe in-house QC labs, including capability to test incoming raw materials, in-process samples, and finished goods.  
+- Mention microbiological monitoring, if the product requires it, including environmental monitoring and bioburden/endotoxin tests.
+
+7. **Regulatory Compliance**  
+- The facility must operate under a Quality Management System compliant with ISO 13485, 21 CFR Part 820, and applicable local regulations.  
+
+Emphasize how the manufacturing infrastructure aligns with design input and the intended use of the device. Tailor for device-specific considerations.
 """
 
     elif section == "Statutory and Regulatory Requirements":
