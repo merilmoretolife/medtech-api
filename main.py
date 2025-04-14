@@ -616,103 +616,20 @@ async def generate_word(data: DeviceRequest):
     )
 
 @app.post("/generate-do-docx")
-async def generate_do_word(data: DeviceRequest):
-    doc = WordDoc()
+async def generate_do_word(data: dict):
+    from docx import Document
+    from io import BytesIO
 
-    # Global font
-    style = doc.styles['Normal']
-    style.font.name = 'Helvetica'
-    style.font.size = Pt(12)
+    doc = Document()
+    doc.add_heading(f"Design Output – {data['deviceName']}", 0)
 
-    section = doc.sections[0]
-
-    # Header
-    header = section.header
-    header_table = header.add_table(rows=1, cols=3)
-    header_table.autofit = False
-    header_table.columns[0].width = Inches(2)
-    header_table.columns[1].width = Inches(3.5)
-    header_table.columns[2].width = Inches(2)
-
-    # Logo
-    logo_cell = header_table.cell(0, 0)
-    logo_para = logo_cell.paragraphs[0]
-    logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-    logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
-
-    # Title
-    center_cell = header_table.cell(0, 1)
-    center_para = center_cell.paragraphs[0]
-    center_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    run = center_para.add_run("Design Output")
-    run.bold = True
-    run.font.size = Pt(17)
-
-    # Document Number
-    right_cell = header_table.cell(0, 2)
-    right_para = right_cell.paragraphs[0]
-    right_para.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    run = right_para.add_run(f"Document Number: DO/{data.deviceName[:3].upper()}/001\nRev. 00")
-    run.font.size = Pt(11)
-
-    # Header line
-    header_line = header.add_paragraph()
-    header_line.add_run("―" * 54).font.size = Pt(8)
-
-    # Footer
-    footer = section.footer
-    footer.add_paragraph("―" * 54).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    page_para = footer.add_paragraph("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
-    page_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    insert_page_number(page_para)
-
-    # Title Page
-    doc.add_paragraph()
-    for _ in range(6): doc.add_paragraph()
-    title_para = doc.add_paragraph()
-    title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    title = title_para.add_run(f"Design Output – {data.deviceName}")
-    title.bold = True
-    title.font.size = Pt(23)
-
-    # TOC
-    doc.add_page_break()
-    doc.add_heading("Table of Contents", level=1)
-    numbered_sections = [f"{i+1}. {title}" for i, title in enumerate(data.sections)]
-    for sec in numbered_sections:
-        toc = doc.add_paragraph(sec)
-        toc.paragraph_format.space_after = Pt(4)
-
-    # Generate content for each section
-    prompts = [(section, generate_do_prompt(data.deviceName, data.intendedUse, section)) for section in data.sections]
-
-    async def fetch(section, prompt):
-        try:
-            response = await asyncio.wait_for(
-                openai.ChatCompletion.acreate(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.4
-                ),
-                timeout=40
-            )
-            return section, response.choices[0].message.content.strip()
-        except Exception as e:
-            return section, f"⚠️ Error generating section: {str(e)}"
-
-    results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
-
-    # Write content
-    for i, (section, content) in enumerate(results):
+    for i, section in enumerate(data['sections']):
         doc.add_page_break()
-        heading = doc.add_paragraph()
-        heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-        run = heading.add_run(f"{i+1}. {section}")
-        run.bold = True
-        run.font.size = Pt(15)
-        doc.add_paragraph(content)
+        doc.add_heading(f"{i+1}. {section}", level=1)
+        content = data['results'].get(section, "")
+        for line in content.strip().split('\n'):
+            doc.add_paragraph(line.strip())
 
-    # Save and return
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
@@ -721,7 +638,8 @@ async def generate_do_word(data: DeviceRequest):
         file_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
-            "Content-Disposition": f"attachment; filename=Design_Output_{data.deviceName.replace(' ', '_')}.docx"
+            "Content-Disposition": f"attachment; filename=Design_Output_{data['deviceName'].replace(' ', '_')}.docx",
+            "Access-Control-Allow-Origin": "*",  # 👈 explicitly add this
         }
     )
 
