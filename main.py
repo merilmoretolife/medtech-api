@@ -277,7 +277,7 @@ Generate the Design Output for the section 'Stability / Shelf Life Requirements'
 Include aging studies (real-time and accelerated), packaging integrity over time, and applicable standards like ASTM F1980.
 """
 
-   elif section == "Manufacturing Requirements":
+    elif section == "Manufacturing Requirements":
         return f"""
 Generate the Design Output for the medical device '{device_name}', intended for '{intended_use}', under the section: 'Manufacturing Requirements'.
 
@@ -313,6 +313,7 @@ Include the following:
 
 Emphasize how the manufacturing infrastructure aligns with design input and the intended use of the device. Tailor for device-specific considerations.
 """
+
 
     elif section == "Statutory and Regulatory Requirements":
         return f"""
