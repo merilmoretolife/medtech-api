@@ -37,7 +37,6 @@ class DeviceRequest(BaseModel):
     deviceName: str
     intendedUse: str
     sections: list[str]
-    results: dict[str, str]  # ✅ add this line
 
 class FinalizedDevice(BaseModel):
     deviceName: str
@@ -47,6 +46,7 @@ class FinalizedDevice(BaseModel):
     diComplete: bool
     doComplete: bool
     finalizedAt: str
+    sections: list[str]  # ✅ Add this line
 
 class DesignOutputRequest(BaseModel):
     deviceName: str
