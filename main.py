@@ -37,6 +37,7 @@ class DeviceRequest(BaseModel):
     deviceName: str
     intendedUse: str
     sections: list[str]
+    results: dict[str, str]  # ✅ add this line
 
 class FinalizedDevice(BaseModel):
     deviceName: str
@@ -620,12 +621,16 @@ async def generate_do_word(data: DeviceRequest):
     from io import BytesIO
 
     doc = Document()
-    doc.add_heading(f"Design Output – {data['deviceName']}", 0)
+    doc.add_heading(f"Design Output – {data.deviceName}", 0)
 
-    for i, section in enumerate(data['sections']):
+    for i, section in enumerate(data.sections):
         doc.add_page_break()
         doc.add_heading(f"{i+1}. {section}", level=1)
-        content = data['results'].get(section, "")
+
+        # IMPORTANT: You need to actually provide the content (results) from frontend
+        # Either add it to the payload or generate it again here (slower)
+        # For now, use placeholder
+        content = f"Output content for section: {section}"
         for line in content.strip().split('\n'):
             doc.add_paragraph(line.strip())
 
@@ -637,7 +642,7 @@ async def generate_do_word(data: DeviceRequest):
         file_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
-            "Content-Disposition": f"attachment; filename=Design_Output_{data['deviceName'].replace(' ', '_')}.docx",
+            "Content-Disposition": f"attachment; filename=Design_Output_{data.deviceName.replace(' ', '_')}.docx"
         }
     )
 
