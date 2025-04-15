@@ -614,24 +614,27 @@ async def generate_word(data: DeviceRequest):
         }
     )
 
+class DOExportRequest(BaseModel):
+    deviceName: str
+    intendedUse: str
+    sections: list[str]
+    results: dict  # ✅ the new key
+
 @app.post("/generate-do-docx")
-async def generate_do_word(data: dict):
+async def generate_do_word(data: DOExportRequest):
     from docx import Document
     from io import BytesIO
 
     doc = Document()
     doc.add_heading(f"Design Output – {data.deviceName}", 0)
 
-    for i, section in enumerate(data.sections):
-        doc.add_page_break()
-        doc.add_heading(f"{i+1}. {section}", level=1)
+for i, section in enumerate(data.sections):
+    doc.add_page_break()
+    doc.add_heading(f"{i+1}. {section}", level=1)
+    content = data.results.get(section, "")
+    for line in content.strip().split('\n'):
+        doc.add_paragraph(line.strip())
 
-        # IMPORTANT: You need to actually provide the content (results) from frontend
-        # Either add it to the payload or generate it again here (slower)
-        # For now, use placeholder
-        content = f"Output content for section: {section}"
-        for line in content.strip().split('\n'):
-            doc.add_paragraph(line.strip())
 
     file_stream = BytesIO()
     doc.save(file_stream)
