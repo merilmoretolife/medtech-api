@@ -47,7 +47,6 @@ class FinalizedDevice(BaseModel):
     diComplete: bool
     doComplete: bool
     finalizedAt: str
-    sections: list[str]  # ✅ Add this line
 
 class DesignOutputRequest(BaseModel):
     deviceName: str
