@@ -615,7 +615,7 @@ async def generate_word(data: DeviceRequest):
     )
 
 @app.post("/generate-do-docx")
-async def generate_do_word(data: DeviceRequest):
+async def generate_do_word(data: dict):
     from docx import Document
     from io import BytesIO
 
@@ -638,6 +638,7 @@ async def generate_do_word(data: DeviceRequest):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
             "Content-Disposition": f"attachment; filename=Design_Output_{data['deviceName'].replace(' ', '_')}.docx",
+            "Access-Control-Allow-Origin": "*",  # 👈 explicitly add this
         }
     )
 
