@@ -615,7 +615,7 @@ async def generate_word(data: DeviceRequest):
     )
 
 @app.post("/generate-do-docx")
-async def generate_do_word(data: DeviceRequest):
+async def generate_do_word(data: dict):
     from docx import Document
     from io import BytesIO
 
