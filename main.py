@@ -639,7 +639,6 @@ async def generate_do_word(data: dict):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
             "Content-Disposition": f"attachment; filename=Design_Output_{data['deviceName'].replace(' ', '_')}.docx",
-            "Access-Control-Allow-Origin": "*",  # 👈 explicitly add this
         }
     )
 
