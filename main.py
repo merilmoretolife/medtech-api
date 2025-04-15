@@ -618,7 +618,7 @@ class DOExportRequest(BaseModel):
     deviceName: str
     intendedUse: str
     sections: list[str]
-    results: dict  # ✅ the new key
+    results: dict
 
 @app.post("/generate-do-docx")
 async def generate_do_word(data: DOExportRequest):
@@ -628,13 +628,12 @@ async def generate_do_word(data: DOExportRequest):
     doc = Document()
     doc.add_heading(f"Design Output – {data.deviceName}", 0)
 
-for i, section in enumerate(data.sections):
-    doc.add_page_break()
-    doc.add_heading(f"{i+1}. {section}", level=1)
-    content = data.results.get(section, "")
-    for line in content.strip().split('\n'):
-        doc.add_paragraph(line.strip())
-
+    for i, section in enumerate(data.sections):
+        doc.add_page_break()
+        doc.add_heading(f"{i+1}. {section}", level=1)
+        content = data.results.get(section, "")
+        for line in content.strip().split('\n'):
+            doc.add_paragraph(line.strip())
 
     file_stream = BytesIO()
     doc.save(file_stream)
