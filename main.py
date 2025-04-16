@@ -714,42 +714,44 @@ async def generate_do_word(data: DOExportRequest):
     prompts = [(section, generate_do_prompt(data.deviceName, data.intendedUse, section)) for section in data.sections]
 
     async def fetch(section, prompt):
-        try:
-            response = await asyncio.wait_for(
-                openai.ChatCompletion.acreate(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.5
-                ),
-                timeout=30
-            )
-            raw = response.choices[0].message.content.strip()
-            cleaned = re.sub(r"[#\*]+", "", raw)
+    try:
+        response = await asyncio.wait_for(
+            openai.ChatCompletion.acreate(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5
+            ),
+            timeout=30
+        )
+        raw = response.choices[0].message.content.strip()
+        cleaned = re.sub(r"[#\*]+", "", raw)
 
+        lines = cleaned.split("\n")
+        formatted = []
+        table = []
+        inside_table = False
 
-            lines = cleaned.split("\n")
-            formatted = []
-            table = []
-            inside_table = False
-
-            for line in lines:
-                if "|" in line:
-                    table.append(line)
-                    inside_table = True
-                else:
-            if inside_table:
+        for line in lines:
+            if "|" in line:
+                table.append(line)
+                inside_table = True
+            else:
+                if inside_table:
                     formatted.append(("table", table))
                     table = []
                     inside_table = False
-            if re.match(r"^\d+\.\s+[A-Z]", line.strip()) or re.match(r"^[-•]", line.strip()):
+                if re.match(r"^\d+\.\s+[A-Z]", line.strip()) or re.match(r"^[-•]", line.strip()):
                     formatted.append(("bold", line))
-            else:
+                else:
                     formatted.append(("normal", line))
 
-            if inside_table and table:
-                    formatted.append(("table", table))
+        if inside_table and table:
+            formatted.append(("table", table))
 
-            return section, formatted
+        return section, formatted
+
+    except Exception as e:
+        return section, [("normal", f"⚠️ Error generating section: {str(e)}")]
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
