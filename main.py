@@ -726,17 +726,30 @@ async def generate_do_word(data: DOExportRequest):
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[#\*]+", "", raw)
 
-            lines = cleaned.split("\n")
-            formatted = []
-            for line in lines:
-                if re.match(r"^\d+\.\s+[A-Z]", line.strip()) or re.match(r"^[-•]", line.strip()):
-                    formatted.append(("bold", line))
-                else:
-                    formatted.append(("normal", line))
-            return section, formatted
-        except Exception as e:
-            return section, [("normal", f"⚠️ Error: {str(e)}")]
+lines = cleaned.split("\n")
+formatted = []
+table = []
+inside_table = False
 
+for line in lines:
+    if "|" in line and "---" not in line:
+        table.append(line)
+        inside_table = True
+    else:
+        if inside_table and table:
+            formatted.append(("table", table))
+            table = []
+            inside_table = False
+
+        if re.match(r"^\d+\.\s+[A-Z]", line.strip()) or re.match(r"^[-•]", line.strip()):
+            formatted.append(("bold", line))
+        else:
+            formatted.append(("normal", line))
+
+if inside_table and table:
+    formatted.append(("table", table))
+
+    
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
     for i, (section_title, lines) in enumerate(results):
@@ -748,20 +761,50 @@ async def generate_do_word(data: DOExportRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        for tag, line in lines:
-            if not line.strip():
-                continue
-            if tag == "bold":
-                doc.add_paragraph()  # line space before bold section
-            para = doc.add_paragraph()
-            para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
-            run = para.add_run(line.strip())
-            run.font.name = 'Helvetica'
-            run.font.size = Pt(12)
-            if tag == "bold":
-                run.bold = True
+for tag, line in lines:
+    if not line.strip():
+        continue
+    if tag == "bold":
+        doc.add_paragraph()  # line space before bold section
+        para = doc.add_paragraph()
+        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        para.paragraph_format.space_after = Pt(0)
+        run = para.add_run(line.strip())
+        run.font.name = 'Helvetica'
+        run.font.size = Pt(12)
+        run.bold = True
 
+    elif tag == "normal":
+        para = doc.add_paragraph()
+        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        para.paragraph_format.space_after = Pt(8)
+        run = para.add_run(line.strip())
+        run.font.name = 'Helvetica'
+        run.font.size = Pt(12)
+
+    elif tag == "table":
+        table_lines = line
+        if len(table_lines) < 2:
+            continue
+
+        headers = [cell.strip() for cell in table_lines[0].split("|") if cell.strip()]
+        table_obj = doc.add_table(rows=1, cols=len(headers))
+        table_obj.style = "Table Grid"
+        hdr_cells = table_obj.rows[0].cells
+        for i, header in enumerate(headers):
+            hdr_cells[i].text = header
+            hdr_cells[i].paragraphs[0].runs[0].font.size = Pt(11)
+
+        for row_line in table_lines[1:]:
+            cells = [cell.strip() for cell in row_line.split("|") if cell.strip()]
+            if len(cells) != len(headers):
+                continue
+            row_cells = table_obj.add_row().cells
+            for i, cell in enumerate(cells):
+                row_cells[i].text = cell
+                row_cells[i].paragraphs[0].runs[0].font.size = Pt(11)
+
+    
     # Save to stream
     file_stream = BytesIO()
     doc.save(file_stream)
