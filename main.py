@@ -621,7 +621,7 @@ class DOExportRequest(BaseModel):
     results: dict
 
 @app.post("/generate-do-docx")
-async def generate_do_word(data: DeviceRequest):
+async def generate_do_word(data: DOExportRequest):
     from docx import Document
     from io import BytesIO
 
