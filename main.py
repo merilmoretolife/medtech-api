@@ -585,22 +585,60 @@ async def generate_word(data: DeviceRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        for tag, line in lines:
-            if not line.strip():
-                continue
-            if tag == "bold":
-                # Add 1 line space before subsection title
-                doc.add_paragraph()
+        in_table = False
+table_data = []
 
-            para = doc.add_paragraph()
-            para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
-            run = para.add_run(line.strip())
-            run.font.name = 'Helvetica'
-            run.font.size = Pt(12)
-            if tag == "bold":
-                run.bold = True
+for tag, line in lines:
+    line = line.strip()
+    if not line:
+        continue
 
+    # Detect table start
+    if line.startswith("|") and line.endswith("|"):
+        table_data.append([cell.strip() for cell in line.split("|")[1:-1]])
+        in_table = True
+        continue
+
+    # Detect table end and write to Word
+    if in_table and (not line.startswith("|") or not line.endswith("|")):
+        if len(table_data) >= 2:
+            table = doc.add_table(rows=1, cols=len(table_data[0]))
+            table.style = 'Table Grid'
+            hdr_cells = table.rows[0].cells
+            for i, cell_text in enumerate(table_data[0]):
+                hdr_cells[i].text = cell_text
+            for row_data in table_data[1:]:
+                row = table.add_row().cells
+                for i, cell_text in enumerate(row_data):
+                    row[i].text = cell_text
+        table_data = []
+        in_table = False
+
+    # Normal/bold paragraph
+    if not in_table:
+        if tag == "bold":
+            doc.add_paragraph()  # space before subsection
+        para = doc.add_paragraph()
+        para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
+        run = para.add_run(line)
+        run.font.name = 'Helvetica'
+        run.font.size = Pt(12)
+        if tag == "bold":
+            run.bold = True
+
+# Add final table if file ends with table
+if in_table and len(table_data) >= 2:
+    table = doc.add_table(rows=1, cols=len(table_data[0]))
+    table.style = 'Table Grid'
+    hdr_cells = table.rows[0].cells
+    for i, cell_text in enumerate(table_data[0]):
+        hdr_cells[i].text = cell_text
+    for row_data in table_data[1:]:
+        row = table.add_row().cells
+        for i, cell_text in enumerate(row_data):
+            row[i].text = cell_text
+            
     # Save file
     file_stream = BytesIO()
     doc.save(file_stream)
