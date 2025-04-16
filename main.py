@@ -621,20 +621,147 @@ class DOExportRequest(BaseModel):
     results: dict
 
 @app.post("/generate-do-docx")
-async def generate_do_word(data: DOExportRequest):
+async def generate_do_word(data: DeviceRequest):
     from docx import Document
     from io import BytesIO
 
-    doc = Document()
-    doc.add_heading(f"Design Output – {data.deviceName}", 0)
+    doc = WordDoc()
 
-    for i, section in enumerate(data.sections):
+    # Global Font Style
+    style = doc.styles['Normal']
+    style.font.name = 'Helvetica'
+    style.font.size = Pt(12)
+
+    section = doc.sections[0]
+
+    # Header
+    header = section.header
+    header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
+    header_table.autofit = False
+    header_table.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    header_table.columns[0].width = Inches(2)
+    header_table.columns[1].width = Inches(3.5)
+    header_table.columns[2].width = Inches(2)
+
+    # Logo
+    logo_cell = header_table.cell(0, 0)
+    logo_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    logo_para = logo_cell.paragraphs[0]
+    logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+    logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
+
+    # Title
+    center_cell = header_table.cell(0, 1)
+    center_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    center_para = center_cell.paragraphs[0]
+    center_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = center_para.add_run("Design Output")
+    run.bold = True
+    run.font.size = Pt(17)
+    run.font.name = 'Helvetica'
+
+    # Doc Number
+    right_cell = header_table.cell(0, 2)
+    right_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    right_para = right_cell.paragraphs[0]
+    right_para.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    run = right_para.add_run(f"Document Number: DO/{data.deviceName[:3].upper()}/001\nRev. 00")
+    run.font.size = Pt(11)
+    run.font.name = 'Helvetica'
+
+    # Line under header
+    header_line = header.add_paragraph()
+    header_line_format = header_line.paragraph_format
+    header_line_format.space_before = Pt(2)
+    header_line_format.space_after = Pt(2)
+    hr = header_line.add_run("―" * 54)
+    hr.font.name = 'Helvetica'
+    hr.font.size = Pt(8)
+
+    # Footer
+    footer = section.footer
+    footer_line = footer.add_paragraph()
+    footer_line.add_run("―" * 54).font.size = Pt(8)
+    footer_line.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+    footer_paragraph = footer.add_paragraph()
+    footer_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = footer_paragraph.add_run("Meril Healthcare Pvt. Ltd.\nConfidential Document - Page ")
+    run.font.size = Pt(10)
+    run.font.name = 'Helvetica'
+    insert_page_number(footer_paragraph)
+
+    # Title Page
+    doc.add_paragraph()
+    for _ in range(6): doc.add_paragraph()
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    run = title_para.add_run(f"Design Output – {data.deviceName}")
+    run.bold = True
+    run.font.size = Pt(23)
+    run.font.name = 'Helvetica'
+
+    # TOC
+    doc.add_page_break()
+    doc.add_heading("Table of Contents", level=1)
+    for i, section_title in enumerate(data.sections):
+        para = doc.add_paragraph(f"{i+1}. {section_title}")
+        para.paragraph_format.space_after = Pt(4)
+        para.style.font.name = 'Helvetica'
+
+    # Fetch and format each section
+    prompts = [(section, generate_do_prompt(data.deviceName, data.intendedUse, section)) for section in data.sections]
+
+    async def fetch(section, prompt):
+        try:
+            response = await asyncio.wait_for(
+                openai.ChatCompletion.acreate(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5
+                ),
+                timeout=30
+            )
+            raw = response.choices[0].message.content.strip()
+            cleaned = re.sub(r"[#\*]+", "", raw)
+
+            lines = cleaned.split("\n")
+            formatted = []
+            for line in lines:
+                if re.match(r"^\d+\.\s+[A-Z]", line.strip()) or re.match(r"^[-•]", line.strip()):
+                    formatted.append(("bold", line))
+                else:
+                    formatted.append(("normal", line))
+            return section, formatted
+        except Exception as e:
+            return section, [("normal", f"⚠️ Error: {str(e)}")]
+
+    results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
+
+    for i, (section_title, lines) in enumerate(results):
         doc.add_page_break()
-        doc.add_heading(f"{i+1}. {section}", level=1)
-        content = data.results.get(section, "")
-        for line in content.strip().split('\n'):
-            doc.add_paragraph(line.strip())
+        heading = doc.add_paragraph()
+        heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        run = heading.add_run(f"{i+1}. {section_title}")
+        run.bold = True
+        run.font.size = Pt(15)
+        run.font.name = 'Helvetica'
 
+        for tag, line in lines:
+            if not line.strip():
+                continue
+            if tag == "bold":
+                doc.add_paragraph()  # line space before bold section
+            para = doc.add_paragraph()
+            para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
+            run = para.add_run(line.strip())
+            run.font.name = 'Helvetica'
+            run.font.size = Pt(12)
+            if tag == "bold":
+                run.bold = True
+
+    # Save to stream
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
