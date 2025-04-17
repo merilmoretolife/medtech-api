@@ -748,19 +748,50 @@ async def generate_do_word(data: DOExportRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-        for tag, line in lines:
-            if not line.strip():
-                continue
-            if tag == "bold":
-                doc.add_paragraph()  # line space before bold section
-            para = doc.add_paragraph()
-            para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
-            run = para.add_run(line.strip())
-            run.font.name = 'Helvetica'
-            run.font.size = Pt(12)
-            if tag == "bold":
-                run.bold = True
+       # before: you build `lines` as a list of the cleaned Markdown lines
+i = 0
+while i < len(lines):
+    line = lines[i].strip()
+    # detect table start
+    if line.startswith("|") and line.endswith("|"):
+        # collect the entire table block
+        table_block = []
+        while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+            table_block.append(lines[i].strip())
+            i += 1
+
+        # parse Markdown rows into lists of cell texts
+        rows = [
+            [cell.strip() for cell in row.strip("|").split("|")]
+            for row in table_block
+        ]
+
+        # create a real docx table
+        tbl = doc.add_table(rows=len(rows)-1, cols=len(rows[0]))
+        tbl.style = "Table Grid"          # gives you visible borders
+
+        # header row
+        hdr_cells = tbl.rows[0].cells
+        for col_idx, text in enumerate(rows[0]):
+            hdr_cells[col_idx].text = text
+
+        # data rows
+        for row_idx, row in enumerate(rows[1:], start=1):
+            cells = tbl.rows[row_idx].cells
+            for col_idx, text in enumerate(row):
+                cells[col_idx].text = text
+
+        continue   # skip the normal paragraph logic for these lines
+
+    # otherwise, your existing paragraph logic:
+    tag, content = formatted_lines[i]
+    para = doc.add_paragraph()
+    para.paragraph_format.space_after = Pt(0 if tag=="bold" else 8)
+    run = para.add_run(content)
+    if tag == "bold":
+        run.bold = True
+    i += 1
+
 
     # Save to stream
     file_stream = BytesIO()
