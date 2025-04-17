@@ -625,7 +625,7 @@ class DOExportRequest(BaseModel):
 async def generate_do_word(data: DOExportRequest):
     from io import BytesIO
 
-    # Create the document and set global font
+    # Create document and set global font
     doc = WordDoc()
     style = doc.styles['Normal']
     style.font.name = 'Helvetica'
@@ -740,7 +740,7 @@ async def generate_do_word(data: DOExportRequest):
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    # --- Insert sections with real tables ---
+    # --- Insert sections with real tables and spacing fixes ---
     for i, (section_title, formatted_lines) in enumerate(results):
         doc.add_page_break()
         heading = doc.add_paragraph()
@@ -756,7 +756,7 @@ async def generate_do_word(data: DOExportRequest):
 
             # Table detection: lines starting and ending with "|"
             if content.strip().startswith("|") and content.strip().endswith("|"):
-                # Gather the entire markdown table block
+                # Gather the full markdown table block
                 table_block = []
                 while (
                     idx < len(formatted_lines)
@@ -766,27 +766,38 @@ async def generate_do_word(data: DOExportRequest):
                     table_block.append(formatted_lines[idx][1].strip())
                     idx += 1
 
-                # Parse rows and cells
-                rows = [row.strip("|").split("|") for row in table_block]
-                num_cols = len(rows[0])
-                num_rows = len(rows)
+                # Parse rows and skip the separator row of hyphens
+                raw_rows = [row.strip("|").split("|") for row in table_block]
+                header_cells = raw_rows[0]
+                data_rows = [
+                    row for row in raw_rows[1:]
+                    if not all(re.fullmatch(r"-+", cell.strip()) for cell in row)
+                ]
+                rows = [header_cells] + data_rows
 
-                tbl = doc.add_table(rows=num_rows, cols=num_cols)
+                # Create a real docx table
+                tbl = doc.add_table(rows=len(rows), cols=len(rows[0]))
                 tbl.style = "Table Grid"
 
-                # Header row
+                # Fill header row
                 for col_idx, header_text in enumerate(rows[0]):
                     tbl.rows[0].cells[col_idx].text = header_text.strip()
 
-                # Data rows
+                # Fill data rows
                 for row_idx, row_cells in enumerate(rows[1:], start=1):
                     for col_idx, cell_text in enumerate(row_cells):
                         tbl.rows[row_idx].cells[col_idx].text = cell_text.strip()
 
+                # Add a blank line after each table
+                doc.add_paragraph()
                 continue  # skip the normal paragraph logic
 
-            # Normal paragraph
+            # Normal paragraph logic
             if content.strip():
+                # Add a blank line before each subsection title
+                if tag == "bold":
+                    doc.add_paragraph()
+
                 para = doc.add_paragraph()
                 para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
                 run = para.add_run(content)
