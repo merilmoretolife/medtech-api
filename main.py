@@ -623,19 +623,17 @@ class DOExportRequest(BaseModel):
 
 @app.post("/generate-do-docx")
 async def generate_do_word(data: DOExportRequest):
-    from docx import Document
     from io import BytesIO
 
+    # Create the document and set global font
     doc = WordDoc()
-
-    # Global Font Style
     style = doc.styles['Normal']
     style.font.name = 'Helvetica'
     style.font.size = Pt(12)
 
     section = doc.sections[0]
 
-    # Header
+    # --- Header ---
     header = section.header
     header_table = header.add_table(rows=1, cols=3, width=Inches(7.5))
     header_table.autofit = False
@@ -644,14 +642,14 @@ async def generate_do_word(data: DOExportRequest):
     header_table.columns[1].width = Inches(3.5)
     header_table.columns[2].width = Inches(2)
 
-    # Logo
+    # Logo cell
     logo_cell = header_table.cell(0, 0)
     logo_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     logo_para = logo_cell.paragraphs[0]
     logo_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
     logo_para.add_run().add_picture("meril_logo.jpg", width=Inches(1.1))
 
-    # Title
+    # Title cell
     center_cell = header_table.cell(0, 1)
     center_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     center_para = center_cell.paragraphs[0]
@@ -661,7 +659,7 @@ async def generate_do_word(data: DOExportRequest):
     run.font.size = Pt(17)
     run.font.name = 'Helvetica'
 
-    # Doc Number
+    # Document number cell
     right_cell = header_table.cell(0, 2)
     right_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     right_para = right_cell.paragraphs[0]
@@ -670,7 +668,7 @@ async def generate_do_word(data: DOExportRequest):
     run.font.size = Pt(11)
     run.font.name = 'Helvetica'
 
-    # Line under header
+    # Horizontal rule under header
     header_line = header.add_paragraph()
     header_line_format = header_line.paragraph_format
     header_line_format.space_before = Pt(2)
@@ -679,7 +677,7 @@ async def generate_do_word(data: DOExportRequest):
     hr.font.name = 'Helvetica'
     hr.font.size = Pt(8)
 
-    # Footer
+    # --- Footer ---
     footer = section.footer
     footer_line = footer.add_paragraph()
     footer_line.add_run("―" * 54).font.size = Pt(8)
@@ -692,9 +690,10 @@ async def generate_do_word(data: DOExportRequest):
     run.font.name = 'Helvetica'
     insert_page_number(footer_paragraph)
 
-    # Title Page
+    # --- Title Page ---
     doc.add_paragraph()
-    for _ in range(6): doc.add_paragraph()
+    for _ in range(6):
+        doc.add_paragraph()
     title_para = doc.add_paragraph()
     title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     run = title_para.add_run(f"Design Output – {data.deviceName}")
@@ -702,7 +701,7 @@ async def generate_do_word(data: DOExportRequest):
     run.font.size = Pt(23)
     run.font.name = 'Helvetica'
 
-    # TOC
+    # --- Table of Contents ---
     doc.add_page_break()
     doc.add_heading("Table of Contents", level=1)
     for i, section_title in enumerate(data.sections):
@@ -710,8 +709,11 @@ async def generate_do_word(data: DOExportRequest):
         para.paragraph_format.space_after = Pt(4)
         para.style.font.name = 'Helvetica'
 
-    # Fetch and format each section
-    prompts = [(section, generate_do_prompt(data.deviceName, data.intendedUse, section)) for section in data.sections]
+    # --- Fetch AI content ---
+    prompts = [
+        (section, generate_do_prompt(data.deviceName, data.intendedUse, section))
+        for section in data.sections
+    ]
 
     async def fetch(section, prompt):
         try:
@@ -725,7 +727,6 @@ async def generate_do_word(data: DOExportRequest):
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[#\*]+", "", raw)
-
             lines = cleaned.split("\n")
             formatted = []
             for line in lines:
@@ -739,7 +740,8 @@ async def generate_do_word(data: DOExportRequest):
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
- for i, (section_title, formatted_lines) in enumerate(results):
+    # --- Insert sections with real tables ---
+    for i, (section_title, formatted_lines) in enumerate(results):
         doc.add_page_break()
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
@@ -752,36 +754,38 @@ async def generate_do_word(data: DOExportRequest):
         while idx < len(formatted_lines):
             tag, content = formatted_lines[idx]
 
-            # Detect start of a Markdown table row
+            # Table detection: lines starting and ending with "|"
             if content.strip().startswith("|") and content.strip().endswith("|"):
-                # Collect the full table block
+                # Gather the entire markdown table block
                 table_block = []
-                while idx < len(formatted_lines) and formatted_lines[idx][1].strip().startswith("|") and formatted_lines[idx][1].strip().endswith("|"):
+                while (
+                    idx < len(formatted_lines)
+                    and formatted_lines[idx][1].strip().startswith("|")
+                    and formatted_lines[idx][1].strip().endswith("|")
+                ):
                     table_block.append(formatted_lines[idx][1].strip())
                     idx += 1
 
-                # Parse Markdown rows into cells
+                # Parse rows and cells
                 rows = [row.strip("|").split("|") for row in table_block]
                 num_cols = len(rows[0])
-                num_rows = len(rows) - 1
+                num_rows = len(rows)
 
-                # Create a real docx table (header + data rows)
-                tbl = doc.add_table(rows=num_rows + 1, cols=num_cols)
+                tbl = doc.add_table(rows=num_rows, cols=num_cols)
                 tbl.style = "Table Grid"
 
-                # Fill header row
+                # Header row
                 for col_idx, header_text in enumerate(rows[0]):
                     tbl.rows[0].cells[col_idx].text = header_text.strip()
 
-                # Fill data rows
+                # Data rows
                 for row_idx, row_cells in enumerate(rows[1:], start=1):
                     for col_idx, cell_text in enumerate(row_cells):
                         tbl.rows[row_idx].cells[col_idx].text = cell_text.strip()
 
-                # Skip the normal paragraph logic for table lines
-                continue
+                continue  # skip the normal paragraph logic
 
-            # Normal paragraph for non‑table lines
+            # Normal paragraph
             if content.strip():
                 para = doc.add_paragraph()
                 para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
@@ -793,11 +797,10 @@ async def generate_do_word(data: DOExportRequest):
 
             idx += 1
 
-    # Save to stream
+    # --- Save and return the .docx ---
     file_stream = BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
-
     return StreamingResponse(
         file_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
