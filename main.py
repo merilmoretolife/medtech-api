@@ -739,7 +739,7 @@ async def generate_do_word(data: DOExportRequest):
 
     results = await asyncio.gather(*[fetch(s, p) for s, p in prompts])
 
-    for i, (section_title, lines) in enumerate(results):
+ for i, (section_title, formatted_lines) in enumerate(results):
         doc.add_page_break()
         heading = doc.add_paragraph()
         heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
@@ -748,50 +748,50 @@ async def generate_do_word(data: DOExportRequest):
         run.font.size = Pt(15)
         run.font.name = 'Helvetica'
 
-       # before: you build `lines` as a list of the cleaned Markdown lines
-i = 0
-while i < len(lines):
-    line = lines[i].strip()
-    # detect table start
-    if line.startswith("|") and line.endswith("|"):
-        # collect the entire table block
-        table_block = []
-        while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
-            table_block.append(lines[i].strip())
-            i += 1
+        idx = 0
+        while idx < len(formatted_lines):
+            tag, content = formatted_lines[idx]
 
-        # parse Markdown rows into lists of cell texts
-        rows = [
-            [cell.strip() for cell in row.strip("|").split("|")]
-            for row in table_block
-        ]
+            # Detect start of a Markdown table row
+            if content.strip().startswith("|") and content.strip().endswith("|"):
+                # Collect the full table block
+                table_block = []
+                while idx < len(formatted_lines) and formatted_lines[idx][1].strip().startswith("|") and formatted_lines[idx][1].strip().endswith("|"):
+                    table_block.append(formatted_lines[idx][1].strip())
+                    idx += 1
 
-        # create a real docx table
-        tbl = doc.add_table(rows=len(rows)-1, cols=len(rows[0]))
-        tbl.style = "Table Grid"          # gives you visible borders
+                # Parse Markdown rows into cells
+                rows = [row.strip("|").split("|") for row in table_block]
+                num_cols = len(rows[0])
+                num_rows = len(rows) - 1
 
-        # header row
-        hdr_cells = tbl.rows[0].cells
-        for col_idx, text in enumerate(rows[0]):
-            hdr_cells[col_idx].text = text
+                # Create a real docx table (header + data rows)
+                tbl = doc.add_table(rows=num_rows + 1, cols=num_cols)
+                tbl.style = "Table Grid"
 
-        # data rows
-        for row_idx, row in enumerate(rows[1:], start=1):
-            cells = tbl.rows[row_idx].cells
-            for col_idx, text in enumerate(row):
-                cells[col_idx].text = text
+                # Fill header row
+                for col_idx, header_text in enumerate(rows[0]):
+                    tbl.rows[0].cells[col_idx].text = header_text.strip()
 
-        continue   # skip the normal paragraph logic for these lines
+                # Fill data rows
+                for row_idx, row_cells in enumerate(rows[1:], start=1):
+                    for col_idx, cell_text in enumerate(row_cells):
+                        tbl.rows[row_idx].cells[col_idx].text = cell_text.strip()
 
-    # otherwise, your existing paragraph logic:
-    tag, content = formatted_lines[i]
-    para = doc.add_paragraph()
-    para.paragraph_format.space_after = Pt(0 if tag=="bold" else 8)
-    run = para.add_run(content)
-    if tag == "bold":
-        run.bold = True
-    i += 1
+                # Skip the normal paragraph logic for table lines
+                continue
 
+            # Normal paragraph for non‑table lines
+            if content.strip():
+                para = doc.add_paragraph()
+                para.paragraph_format.space_after = Pt(0 if tag == "bold" else 8)
+                run = para.add_run(content)
+                run.font.name = 'Helvetica'
+                run.font.size = Pt(12)
+                if tag == "bold":
+                    run.bold = True
+
+            idx += 1
 
     # Save to stream
     file_stream = BytesIO()
