@@ -924,7 +924,7 @@ async def parse_options(payload: dict):
                 # Normalize line
                 lower_line = line.lower().strip()
                 # Match relevant lines
-                if any(k in lower_line for k in ["material", "steril", "dimension", "packag", "method", "design"]):
+                if any(k in lower_line for k in ["material", "sterilization", "dimension", "packaging", "method", "design", "test", "standards"]):
                     # Extract capitalized phrases
                     matches = re.findall(r"\b([A-Z][a-zA-Z0-9/(). -]{2,})\b", line)
                     for m in matches:
