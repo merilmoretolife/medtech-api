@@ -921,10 +921,13 @@ async def parse_options(payload: dict):
             lines = text.split("\n")
             options = []
             for line in lines:
-                if any(keyword in line.lower() for keyword in ["material", "sterilization", "packaging", "dimension"]):
-                    matches = re.findall(r"\b[A-Z0-9a-z\-/]+\b", line)
+                # Normalize line
+                lower_line = line.lower().strip()
+                # Match relevant lines
+                if any(k in lower_line for k in ["material", "steril", "dimension", "packag", "method", "design"]):
+                    # Extract capitalized phrases
+                    matches = re.findall(r"\b([A-Z][a-zA-Z0-9/(). -]{2,})\b", line)
                     for m in matches:
-                        if m not in options:
                             options.append(m)
             parsed[section] = options
         return {"parsed": parsed}
