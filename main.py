@@ -910,22 +910,23 @@ async def regenerate_with_remark(data: DesignOutputRequest, remark: str = ""):
 
 @app.post("/parse-options")
 async def parse_options(payload: dict):
-    device_name = payload["deviceName"]
-    intended_use = payload["intendedUse"]
-    sections = payload["sections"]
-    results = payload["results"]
+    try:
+        device_name = payload["deviceName"]
+        intended_use = payload["intendedUse"]
+        sections = payload["sections"]
+        results = payload["results"]
 
-    # Example structure: extract lists from input for Material, Sterilization etc.
-    parsed = {}
-    for section, text in results.items():
-        # Use basic parsing rules for now – can improve later with NLP
-        lines = text.split("\n")
-        options = []
-        for line in lines:
-            if any(keyword in line.lower() for keyword in ["material", "sterilization", "packaging", "dimension"]):
-                matches = re.findall(r"([A-Z][a-z]+(?: [A-Z][a-z]+)*)", line)
-                for m in matches:
-                    if m not in options:
-                        options.append(m)
-        parsed[section] = options
-    return {"parsed": parsed}
+        parsed = {}
+        for section, text in results.items():
+            lines = text.split("\n")
+            options = []
+            for line in lines:
+                if any(keyword in line.lower() for keyword in ["material", "sterilization", "packaging", "dimension"]):
+                    matches = re.findall(r"\b[A-Z0-9a-z\-/]+\b", line)
+                    for m in matches:
+                        if m not in options:
+                            options.append(m)
+            parsed[section] = options
+        return {"parsed": parsed}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
