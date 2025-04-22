@@ -20,6 +20,7 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import datetime
+from bs4 import BeautifulSoup
 
 app = FastAPI()
 
@@ -895,31 +896,47 @@ Current Section Content:
 
 @app.post("/extract-options")
 async def extract_options(payload: dict):
+    from collections import defaultdict
+
     device_name = payload["deviceName"]
     intended_use = payload["intendedUse"]
     sections = payload["sections"]
-    html = payload["results"]
+    html = payload["designInputHtml"]
 
+    soup = BeautifulSoup(html, "html.parser")
+    section_blocks = defaultdict(str)
+
+    # First, split the HTML into section-wise blocks using <h2>
+    current_section = None
+    for tag in soup.find_all(["h2", "h3", "p", "ul", "li", "div", "table"]):
+        if tag.name == "h2":
+            current_section = tag.text.strip()
+        elif current_section:
+            section_blocks[current_section] += tag.get_text(separator=" ", strip=True) + " "
+
+    # Define keyword list for extraction context
+    keywords = [
+        "material", "construction", "dimension", "component", "design", "size", "diameter",
+        "length", "sterilization", "sterilized", "gamma", "EO", "ethylene", "irradiation",
+        "packaging", "barrier", "pouch", "tray", "foil", "carton", "box",
+        "label", "symbol", "IFU", "e-IFU", "language", "instruction"
+    ]
+
+    # Extract option-like words using capitalization and keyword proximity
     parsed = {}
 
     for section in sections:
-        try:
-            # Match section block from <h2>Section Name</h2> to next <h2>
-            section_pattern = re.compile(rf"<h2[^>]*>{re.escape(section)}</h2>(.*?)<h2", re.DOTALL | re.IGNORECASE)
-            match = section_pattern.search(html + "<h2>")  # force match at end
-            if not match:
-                parsed[section] = []
-                continue
-            block = match.group(1)
-            lines = block.split("\n")
-            options = set()
-            keywords = ["material", "dimension", "sterilization", "label", "packaging", "construction", "design"]
-            for line in lines:
-                if any(k in line.lower() for k in keywords):
-                    matches = re.findall(r"\b[A-Z][a-zA-Z0-9\s\-\/]{2,}\b", line)
-                    options.update([m.strip() for m in matches if len(m.strip()) > 2])
-            parsed[section] = list(options)
-        except Exception as e:
-            parsed[section] = [f"⚠️ Error: {str(e)}"]
+        block = section_blocks.get(section, "")
+        lines = block.split(". ")
+        found = set()
+
+        for line in lines:
+            if any(kw.lower() in line.lower() for kw in keywords):
+                matches = re.findall(r"\b([A-Z][a-zA-Z0-9 \-/]+?)\b", line)
+                for m in matches:
+                    if len(m) > 2 and not m.lower() in ["the", "and", "or", "use", "used"]:
+                        found.add(m.strip())
+
+        parsed[section] = sorted(found)
 
     return {"parsed": parsed}
