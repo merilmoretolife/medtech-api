@@ -893,58 +893,34 @@ Current Section Content:
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/regenerate-section")
-async def regenerate_with_remark(data: DesignOutputRequest, remark: str = ""):
-    base_prompt = generate_do_prompt(data.deviceName, data.intendedUse, data.section)
-    if remark:
-        base_prompt += f"\n\nUser Remark: {remark}\nPlease revise the content accordingly, keeping the structure intact."
+@app.post("/extract-options")
+async def extract_options(data: dict):
+    device_name = data["deviceName"]
+    intended_use = data["intendedUse"]
+    section = data["section"]
+    content = data["content"]
+
+    prompt = f"""
+You are given a Design Input section titled "{section}" for the medical device '{device_name}', intended for '{intended_use}'.
+
+From the following content, extract a clear list of distinct items or options (such as materials, sterilization methods, packaging types, etc.) that could be selected or filtered further in the Design Output.
+
+Design Input Content:
+\"\"\"
+{content}
+\"\"\"
+
+Return only the list of items. No explanation or extra text.
+"""
+
     try:
         response = await openai.ChatCompletion.acreate(
             model="gpt-4o",
-            messages=[{"role": "user", "content": base_prompt}],
-            temperature=0.4
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
         )
-        return {"result": response.choices[0].message.content.strip()}
+        options = response.choices[0].message.content.strip().split("\n")
+        options = [opt.strip("- ").strip() for opt in options if opt.strip()]
+        return {"options": options}
     except Exception as e:
         return {"error": str(e)}
-
-@app.post("/parse-options")
-async def parse_options(payload: dict):
-    device_name = payload.get("deviceName", "")
-    intended_use = payload.get("intendedUse", "")
-    sections = payload.get("sections", [])
-    results = payload.get("results", {})
-
-    parsed = {}
-
-    for section in sections:
-        content = results.get(section, "")
-        lines = content.splitlines()
-        options = set()
-
-        for line in lines:
-            lower = line.lower()
-
-            # Material of Construction
-            if "material of construction" in lower:
-                materials = re.findall(r"\b[A-Z][a-zA-Z0-9 /()-]{2,}\b", line)
-                options.update(m.strip() for m in materials if len(m.strip()) > 2)
-
-            # Sterilization Method
-            elif "sterilization method" in lower or "sterilized using" in lower:
-                methods = re.findall(r"\b(Gamma|EO|Ethylene Oxide|Steam|Dry Heat|Plasma|Radiation)\b", line, re.IGNORECASE)
-                options.update(methods)
-
-            # Packaging
-            elif "packaging" in lower or "pouch" in lower or "tray" in lower:
-                packs = re.findall(r"\b[A-Z][a-zA-Z0-9 /-]{2,}\b", line)
-                options.update(packs)
-
-            # Dimensions
-            elif "dimension" in lower:
-                dims = re.findall(r"\b\d+(\.\d+)?\s?(mm|cm|in|inch|inches)\b", line)
-                options.update([f"{d[0]} {d[1]}" for d in dims])
-
-        parsed[section] = sorted(options)
-
-    return {"parsed": parsed}
