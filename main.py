@@ -896,47 +896,93 @@ Current Section Content:
 
 @app.post("/extract-options")
 async def extract_options(payload: dict):
-    from collections import defaultdict
+    device_name = payload.get("deviceName")
+    intended_use = payload.get("intendedUse")
+    sections = payload.get("sections")
+    html = payload.get("designInputHtml", "")
 
-    device_name = payload["deviceName"]
-    intended_use = payload["intendedUse"]
-    sections = payload["sections"]
-    html = payload["designInputHtml"]
-
-    soup = BeautifulSoup(html, "html.parser")
-    section_blocks = defaultdict(str)
-
-    # First, split the HTML into section-wise blocks using <h2>
-    current_section = None
-    for tag in soup.find_all(["h2", "h3", "p", "ul", "li", "div", "table"]):
-        if tag.name == "h2":
-            current_section = tag.text.strip()
-        elif current_section:
-            section_blocks[current_section] += tag.get_text(separator=" ", strip=True) + " "
-
-    # Define keyword list for extraction context
-    keywords = [
-        "material", "construction", "dimension", "component", "design", "size", "diameter",
-        "length", "sterilization", "sterilized", "gamma", "EO", "ethylene", "irradiation",
-        "packaging", "barrier", "pouch", "tray", "foil", "carton", "box",
-        "label", "symbol", "IFU", "e-IFU", "language", "instruction"
-    ]
-
-    # Extract option-like words using capitalization and keyword proximity
     parsed = {}
+    soup = BeautifulSoup(html, "html.parser")
 
     for section in sections:
-        block = section_blocks.get(section, "")
-        lines = block.split(". ")
-        found = set()
+        parsed[section] = []
+        block = soup.find("h2", string=re.compile(section, re.IGNORECASE))
+        if not block:
+            continue
 
-        for line in lines:
-            if any(kw.lower() in line.lower() for kw in keywords):
-                matches = re.findall(r"\b([A-Z][a-zA-Z0-9 \-/]+?)\b", line)
-                for m in matches:
-                    if len(m) > 2 and not m.lower() in ["the", "and", "or", "use", "used"]:
-                        found.add(m.strip())
+        content = ""
+        current = block.find_next_sibling()
+        while current and current.name != "h2":
+            content += current.get_text(separator=" ", strip=True) + " "
+            current = current.find_next_sibling()
 
-        parsed[section] = sorted(found)
+        text = content.strip()
+
+        # --- SMART RULES PER SECTION ---
+        if section == "Functional and Performance Requirements":
+            # Extract Dimensions from ranges like 5 mm – 10 mm (or hyphen variations)
+            dim_matches = re.findall(r'(\d+(?:\.\d+)?)[\s\u2013\-to]+(\d+(?:\.\d+)?)\s*(mm|cm|in)', text)
+            for start, end, unit in dim_matches:
+                try:
+                    start, end = float(start), float(end)
+                    if end - start > 0 and (end - start) < 100:
+                        values = [f"{i:.0f} {unit}" for i in range(int(start), int(end)+1)]
+                        parsed[section].extend(values)
+                except:
+                    continue
+
+            # Also look for discrete dimensions
+            parsed[section] = list(set(parsed[section]))
+
+        elif section == "Sterilization Requirements":
+            methods = ["EO", "Ethylene Oxide", "Gamma", "Dry Heat", "Steam", "Radiation"]
+            for m in methods:
+                if re.search(m, text, re.IGNORECASE):
+                    parsed[section].append(m)
+
+        elif section == "Labeling and IFU Requirements":
+            if "symbol" in text.lower():
+                parsed[section].append("ISO Symbols")
+            if "e-IFU" in text or "electronic IFU" in text.lower():
+                parsed[section].append("e-IFU Compliance")
+            if "21 CFR" in text:
+                parsed[section].append("21 CFR Compliance")
+            if "EN ISO 15223" in text:
+                parsed[section].append("EN ISO 15223-1")
+
+        elif section == "Biological and Safety Requirements":
+            standards = re.findall(r"(ISO 10993-[\d]+|USP <[\d]+>)", text)
+            parsed[section].extend(list(set(standards)))
+
+        elif section == "Packaging and Shipping Requirements":
+            tests = ["ASTM D4169", "ASTM D5276", "ASTM D999", "IS 7028", "ISO 11607"]
+            for test in tests:
+                if test in text:
+                    parsed[section].append(test)
+
+        elif section == "Stability / Shelf Life Requirements":
+            if "accelerated aging" in text.lower():
+                parsed[section].append("Accelerated Aging")
+            if "real-time" in text.lower():
+                parsed[section].append("Real-Time Stability")
+
+        elif section == "Manufacturing Requirements":
+            if "ISO 13485" in text:
+                parsed[section].append("ISO 13485 Compliance")
+            if "cleanroom" in text.lower():
+                parsed[section].append("Cleanroom Infrastructure")
+            if "gmp" in text.lower():
+                parsed[section].append("GMP Compliance")
+
+        elif section == "Statutory and Regulatory Requirements":
+            if "cdsco" in text.lower():
+                parsed[section].append("CDSCO India")
+            if "EU MDR" in text or "Regulation (EU) 2017/745" in text:
+                parsed[section].append("EU MDR Compliance")
+            if "FDA" in text or "510(k)" in text or "21 CFR" in text:
+                parsed[section].append("US FDA")
+
+        # Cleanup duplicates
+        parsed[section] = list(sorted(set(parsed[section])))
 
     return {"parsed": parsed}
