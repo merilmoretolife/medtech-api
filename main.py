@@ -911,25 +911,28 @@ async def regenerate_with_remark(data: DesignOutputRequest, remark: str = ""):
 @app.post("/parse-options")
 async def parse_options(payload: dict):
     try:
-        device_name = payload["deviceName"]
-        intended_use = payload["intendedUse"]
-        sections = payload["sections"]
-        results = payload["results"]
+        device_name = payload.get("deviceName", "")
+        intended_use = payload.get("intendedUse", "")
+        sections = payload.get("sections", [])
+        results = payload.get("results", {})
 
         parsed = {}
-        for section, text in results.items():
+
+        for section in sections:
+            text = results.get(section, "")
             lines = text.split("\n")
-            options = []
+            options = set()
+
             for line in lines:
-                # Normalize line
-                lower_line = line.lower().strip()
-                # Match relevant lines
-                if any(k in lower_line for k in ["material", "sterilization", "dimension", "packaging", "method", "design", "test", "standards"]):
-                    # Extract capitalized phrases
-                    matches = re.findall(r"\b([A-Z][a-zA-Z0-9/(). -]{2,})\b", line)
+                line_lower = line.lower()
+                if any(k in line_lower for k in ["material", "sterilization", "dimension", "packaging", "method", "standard", "component"]):
+                    matches = re.findall(r"\b([A-Z][a-zA-Z0-9/+(). -]{2,})\b", line)
                     for m in matches:
-                            options.append(m)
-            parsed[section] = options
+                        if 2 < len(m.strip()) < 60:
+                            options.add(m.strip())
+
+            parsed[section] = list(options)
+
         return {"parsed": parsed}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return {"parsed": {}, "error": str(e)}
