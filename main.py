@@ -894,33 +894,32 @@ Current Section Content:
         return {"error": str(e)}
 
 @app.post("/extract-options")
-async def extract_options(data: dict):
-    device_name = data["deviceName"]
-    intended_use = data["intendedUse"]
-    section = data["section"]
-    content = data["content"]
+async def extract_options(payload: dict):
+    device_name = payload["deviceName"]
+    intended_use = payload["intendedUse"]
+    sections = payload["sections"]
+    html = payload["results"]
 
-    prompt = f"""
-You are given a Design Input section titled "{section}" for the medical device '{device_name}', intended for '{intended_use}'.
+    parsed = {}
 
-From the following content, extract a clear list of distinct items or options (such as materials, sterilization methods, packaging types, etc.) that could be selected or filtered further in the Design Output.
+    for section in sections:
+        try:
+            # Match section block from <h2>Section Name</h2> to next <h2>
+            section_pattern = re.compile(rf"<h2[^>]*>{re.escape(section)}</h2>(.*?)<h2", re.DOTALL | re.IGNORECASE)
+            match = section_pattern.search(html + "<h2>")  # force match at end
+            if not match:
+                parsed[section] = []
+                continue
+            block = match.group(1)
+            lines = block.split("\n")
+            options = set()
+            keywords = ["material", "dimension", "sterilization", "label", "packaging", "construction", "design"]
+            for line in lines:
+                if any(k in line.lower() for k in keywords):
+                    matches = re.findall(r"\b[A-Z][a-zA-Z0-9\s\-\/]{2,}\b", line)
+                    options.update([m.strip() for m in matches if len(m.strip()) > 2])
+            parsed[section] = list(options)
+        except Exception as e:
+            parsed[section] = [f"⚠️ Error: {str(e)}"]
 
-Design Input Content:
-\"\"\"
-{content}
-\"\"\"
-
-Return only the list of items. No explanation or extra text.
-"""
-
-    try:
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
-        )
-        options = response.choices[0].message.content.strip().split("\n")
-        options = [opt.strip("- ").strip() for opt in options if opt.strip()]
-        return {"options": options}
-    except Exception as e:
-        return {"error": str(e)}
+    return {"parsed": parsed}
