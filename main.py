@@ -910,29 +910,41 @@ async def regenerate_with_remark(data: DesignOutputRequest, remark: str = ""):
 
 @app.post("/parse-options")
 async def parse_options(payload: dict):
-    try:
-        device_name = payload.get("deviceName", "")
-        intended_use = payload.get("intendedUse", "")
-        sections = payload.get("sections", [])
-        results = payload.get("results", {})
+    device_name = payload.get("deviceName", "")
+    intended_use = payload.get("intendedUse", "")
+    sections = payload.get("sections", [])
+    results = payload.get("results", {})
 
-        parsed = {}
+    parsed = {}
 
-        for section in sections:
-            text = results.get(section, "")
-            lines = text.split("\n")
-            options = set()
+    for section in sections:
+        content = results.get(section, "")
+        lines = content.splitlines()
+        options = set()
 
-            for line in lines:
-                line_lower = line.lower()
-                if any(k in line_lower for k in ["material", "sterilization", "dimension", "packaging", "method", "standard", "component"]):
-                    matches = re.findall(r"\b([A-Z][a-zA-Z0-9/+(). -]{2,})\b", line)
-                    for m in matches:
-                        if 2 < len(m.strip()) < 60:
-                            options.add(m.strip())
+        for line in lines:
+            lower = line.lower()
 
-            parsed[section] = list(options)
+            # Material of Construction
+            if "material of construction" in lower:
+                materials = re.findall(r"\b[A-Z][a-zA-Z0-9 /()-]{2,}\b", line)
+                options.update(m.strip() for m in materials if len(m.strip()) > 2)
 
-        return {"parsed": parsed}
-    except Exception as e:
-        return {"parsed": {}, "error": str(e)}
+            # Sterilization Method
+            elif "sterilization method" in lower or "sterilized using" in lower:
+                methods = re.findall(r"\b(Gamma|EO|Ethylene Oxide|Steam|Dry Heat|Plasma|Radiation)\b", line, re.IGNORECASE)
+                options.update(methods)
+
+            # Packaging
+            elif "packaging" in lower or "pouch" in lower or "tray" in lower:
+                packs = re.findall(r"\b[A-Z][a-zA-Z0-9 /-]{2,}\b", line)
+                options.update(packs)
+
+            # Dimensions
+            elif "dimension" in lower:
+                dims = re.findall(r"\b\d+(\.\d+)?\s?(mm|cm|in|inch|inches)\b", line)
+                options.update([f"{d[0]} {d[1]}" for d in dims])
+
+        parsed[section] = sorted(options)
+
+    return {"parsed": parsed}
