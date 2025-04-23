@@ -908,26 +908,29 @@ async def extract_options(payload: dict):
     parsed = {}
 
     for section in sections:
-        block = soup.find("h3", string=re.compile(section, re.IGNORECASE))
+        block = soup.find(["h2", "h3"], string=re.compile(section, re.IGNORECASE))
         if not block:
-            parsed[section] = []
             continue
 
-        content_div = block.find_next("div", class_="results")
-        text = content_div.get_text(separator="\n", strip=True) if content_div else ""
+        results_div = block.find_parent().find("div", class_="results")
+        if not results_div:
+            continue
+
+        text = results_div.get_text(separator=" ", strip=True)
 
         prompt = f"""
-You are an expert in medical device regulatory documentation. Given the following Design Input content under the section "{section}" for a device called "{device_name}" with intended use "{intended_use}", extract a list of **distinct and relevant technical options** that would help customize the Design Output.
+You are an expert in medical device documentation. Given the following section titled '{section}' for a device called '{device_name}' with intended use '{intended_use}', extract only the most relevant checklist options for downstream output generation.
 
-- For 'Functional and Performance Requirements': extract only materials or dimension values (individual sizes from ranges), skip tolerances and mechanical properties.
-- For 'Sterilization Requirements': extract only sterilization methods (EO, Steam, Gamma, Dry Heat, etc.).
-- For 'Biological and Safety Requirements': extract a list of test names and associated standards (e.g., ISO 10993-5 – Cytotoxicity).
-- For 'Packaging and Shipping Requirements': extract packaging materials (Tyvek, blister, pouch, foil) and transportation test names.
-- For 'Labeling', 'Manufacturing', and 'Statutory', extract distinct regulation or infrastructure keywords.
-- Avoid repeating the same term (e.g., EO and Ethylene Oxide → just EO).
-- Output only a Python list of strings.
+Apply the following rules:
+- 'Functional and Performance Requirements': extract individual dimension values (like '32 mm', '34 mm') and unique material names (e.g., 'Ti-6Al-4V', 'UHMWPE').
+- 'Sterilization Requirements': extract only unique sterilization methods like EO, Steam, Gamma, Dry Heat (deduplicate similar terms like 'Ethylene Oxide' and 'EO').
+- 'Biological and Safety Requirements': extract both test names (e.g., 'Cytotoxicity', 'Sensitization') and corresponding standards (e.g., 'ISO 10993-5').
+- 'Packaging and Shipping Requirements': extract packaging types (e.g., Tyvek, Blister, Foil, Pouch) and transportation test names (e.g., ASTM D4169, Drop Test).
+- Other sections: extract relevant keywords like standards (e.g., ISO 13485), regulatory bodies (CDSCO, US FDA), or infrastructure terms (e.g., Cleanroom, GMP).
 
-Here is the content:
+Return the result as a clean Python list of strings without explanation or formatting.
+
+Section content:
 {text}
 """
 
