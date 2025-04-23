@@ -904,19 +904,20 @@ async def extract_options(payload: dict):
     parsed = {}
     soup = BeautifulSoup(html, "html.parser")
 
-    for section in sections:
-        parsed[section] = []
-        block = soup.find("h2", string=re.compile(section, re.IGNORECASE))
-        if not block:
-            continue
+for section in sections:
+    parsed[section] = []
 
-        content = ""
-        current = block.find_next_sibling()
-        while current and current.name != "h2":
-            content += current.get_text(separator=" ", strip=True) + " "
-            current = current.find_next_sibling()
+    # Normalize section name to match the DOM ID format used in frontend
+    normalized = section.replace(" ", "").replace("/", "").replace("-", "")
+    section_div = soup.find("div", {"id": f"section-block-{normalized}"})
+    if not section_div:
+        continue
 
-        text = content.strip()
+    content_div = section_div.find("div", {"id": f"result-{normalized}"})
+    if not content_div:
+        continue
+
+    text = content_div.get_text(separator=" ", strip=True)
 
         # --- SMART RULES PER SECTION ---
         if section == "Functional and Performance Requirements":
