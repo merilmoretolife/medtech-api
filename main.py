@@ -1,4 +1,5 @@
 
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -904,20 +905,20 @@ async def extract_options(payload: dict):
     parsed = {}
     soup = BeautifulSoup(html, "html.parser")
 
-for section in sections:
-    parsed[section] = []
+    for section in sections:
+        parsed[section] = []
 
     # Normalize section name to match the DOM ID format used in frontend
-    normalized = section.replace(" ", "").replace("/", "").replace("-", "")
-    section_div = soup.find("div", {"id": f"section-block-{normalized}"})
-    if not section_div:
-        continue
+        normalized = section.replace(" ", "").replace("/", "").replace("-", "")
+        section_div = soup.find("div", {"id": f"section-block-{normalized}"})
+        if not section_div:
+            continue
 
-    content_div = section_div.find("div", {"id": f"result-{normalized}"})
-    if not content_div:
-        continue
+        content_div = section_div.find("div", {"id": f"result-{normalized}"})
+        if not content_div:
+            continue
 
-    text = content_div.get_text(separator=" ", strip=True)
+        text = content_div.get_text(separator=" ", strip=True)
 
         # --- SMART RULES PER SECTION ---
         if section == "Functional and Performance Requirements":
