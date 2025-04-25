@@ -1,5 +1,6 @@
 
 
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -897,98 +898,94 @@ Current Section Content:
 
 @app.post("/extract-options")
 async def extract_options(payload: dict):
-    device_name = payload.get("deviceName", "")
-    intended_use = payload.get("intendedUse", "")
-    sections = payload.get("sections", [])
+    device_name = payload.get("deviceName")
+    intended_use = payload.get("intendedUse")
+    sections = payload.get("sections")
     html = payload.get("designInputHtml", "")
-    
-    # Initialize parser and result dict
+
+    parsed = {}
     soup = BeautifulSoup(html, "html.parser")
-    parsed = {section: [] for section in sections}
 
-    # First try to find all section divs
-    section_divs = soup.find_all("div", class_="section")
-    
-    # If no section divs found, try alternative selectors
-    if not section_divs:
-        section_divs = soup.find_all("div", class_="results")
-    
     for section in sections:
-        section_found = False
-        
-        # Search through all section divs
-        for div in section_divs:
-            # Find the section header (h2)
-            header = div.find(["h2"], string=lambda text: section.lower() in text.lower() if text else False)
-            
-            if header:
-                section_found = True
-                # Get all text content within this section div
-                content = div.get_text(separator="\n", strip=True)
-                
-                # Generate specialized prompt for this section
-                prompt = f"""
-Extract specific technical options and parameters from the following medical device design input section.
-Device: {device_name}
-Intended Use: {intended_use}
-Section: {section}
+        parsed[section] = []
 
-Extract ONLY the following types of information as a Python list of strings:
+    # Normalize section name to match the DOM ID format used in frontend
+        normalized = section.replace(" ", "").replace("/", "").replace("-", "")
+        section_div = soup.find("div", {"id": f"section-block-{normalized}"})
+        if not section_div:
+            continue
 
-1. For Functional and Performance Requirements:
-   - Material specifications (e.g., "Ti-6Al-4V alloy", "316L stainless steel")
-   - Dimensional parameters (e.g., "32 mm length", "0.5-1.2 cm diameter")
-   - Mechanical properties (e.g., "Tensile strength ≥ 50 MPa")
-   - Performance standards (e.g., "ASTM F382", "ISO 7206")
+        content_div = section_div.find("div", {"id": f"result-{normalized}"})
+        if not content_div:
+            continue
 
-2. For Sterilization Requirements:
-   - Methods (e.g., "Ethylene Oxide", "Gamma radiation")
-   - Standards (e.g., "ISO 11135", "AAMI TIR28")
-   - Parameters (e.g., "SAL 10^-6", "25 kGy dose")
+        text = content_div.get_text(separator=" ", strip=True)
 
-3. For Biological Safety:
-   - Test names (e.g., "Cytotoxicity", "Sensitization")
-   - Standards (e.g., "ISO 10993-5", "USP <87>")
-   - Acceptance criteria (e.g., "Grade ≤ 2 cytotoxicity")
-
-4. For Packaging:
-   - Materials (e.g., "Tyvek pouches", "PETG trays")
-   - Test methods (e.g., "ASTM F88 seal strength")
-   - Standards (e.g., "ISO 11607-1")
-
-5. For Other Sections:
-   - Key requirements (e.g., "Cleanroom Class 8")
-   - Regulatory standards (e.g., "21 CFR 820")
-   - Critical parameters
-
-Return ONLY a Python list of specific items. No explanations or additional text.
-
-Section Content:
-{content}
-"""
+        # --- SMART RULES PER SECTION ---
+        if section == "Functional and Performance Requirements":
+            # Extract Dimensions from ranges like 5 mm – 10 mm (or hyphen variations)
+            dim_matches = re.findall(r'(\d+(?:\.\d+)?)[\s\u2013\-to]+(\d+(?:\.\d+)?)\s*(mm|cm|in)', text)
+            for start, end, unit in dim_matches:
                 try:
-                    response = await openai.ChatCompletion.acreate(
-                        model="gpt-4o",
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.3,
-                        max_tokens=1000
-                    )
-                    raw = response.choices[0].message.content.strip()
-                    
-                    # Safely parse the response
-                    if raw.startswith("[") and raw.endswith("]"):
-                        try:
-                            items = eval(raw)
-                            if isinstance(items, list):
-                                parsed[section] = items
-                        except:
-                            parsed[section] = []
-                except Exception as e:
-                    print(f"Error processing {section}: {str(e)}")
-                
-                break  # Move to next section once found
-        
-        if not section_found:
-            print(f"Section {section} not found in HTML")
+                    start, end = float(start), float(end)
+                    if end - start > 0 and (end - start) < 100:
+                        values = [f"{i:.0f} {unit}" for i in range(int(start), int(end)+1)]
+                        parsed[section].extend(values)
+                except:
+                    continue
+
+            # Also look for discrete dimensions
+            parsed[section] = list(set(parsed[section]))
+
+        elif section == "Sterilization Requirements":
+            methods = ["EO", "Ethylene Oxide", "Gamma", "Dry Heat", "Steam", "Radiation"]
+            for m in methods:
+                if re.search(m, text, re.IGNORECASE):
+                    parsed[section].append(m)
+
+        elif section == "Labeling and IFU Requirements":
+            if "symbol" in text.lower():
+                parsed[section].append("ISO Symbols")
+            if "e-IFU" in text or "electronic IFU" in text.lower():
+                parsed[section].append("e-IFU Compliance")
+            if "21 CFR" in text:
+                parsed[section].append("21 CFR Compliance")
+            if "EN ISO 15223" in text:
+                parsed[section].append("EN ISO 15223-1")
+
+        elif section == "Biological and Safety Requirements":
+            standards = re.findall(r"(ISO 10993-[\d]+|USP <[\d]+>)", text)
+            parsed[section].extend(list(set(standards)))
+
+        elif section == "Packaging and Shipping Requirements":
+            tests = ["ASTM D4169", "ASTM D5276", "ASTM D999", "IS 7028", "ISO 11607"]
+            for test in tests:
+                if test in text:
+                    parsed[section].append(test)
+
+        elif section == "Stability / Shelf Life Requirements":
+            if "accelerated aging" in text.lower():
+                parsed[section].append("Accelerated Aging")
+            if "real-time" in text.lower():
+                parsed[section].append("Real-Time Stability")
+
+        elif section == "Manufacturing Requirements":
+            if "ISO 13485" in text:
+                parsed[section].append("ISO 13485 Compliance")
+            if "cleanroom" in text.lower():
+                parsed[section].append("Cleanroom Infrastructure")
+            if "gmp" in text.lower():
+                parsed[section].append("GMP Compliance")
+
+        elif section == "Statutory and Regulatory Requirements":
+            if "cdsco" in text.lower():
+                parsed[section].append("CDSCO India")
+            if "EU MDR" in text or "Regulation (EU) 2017/745" in text:
+                parsed[section].append("EU MDR Compliance")
+            if "FDA" in text or "510(k)" in text or "21 CFR" in text:
+                parsed[section].append("US FDA")
+
+        # Cleanup duplicates
+        parsed[section] = list(sorted(set(parsed[section])))
 
     return {"parsed": parsed}
