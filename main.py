@@ -897,52 +897,98 @@ Current Section Content:
 
 @app.post("/extract-options")
 async def extract_options(payload: dict):
-    from collections import defaultdict
-
-    device_name = payload.get("deviceName")
-    intended_use = payload.get("intendedUse")
-    sections = payload.get("sections")
+    device_name = payload.get("deviceName", "")
+    intended_use = payload.get("intendedUse", "")
+    sections = payload.get("sections", [])
     html = payload.get("designInputHtml", "")
-
+    
+    # Initialize parser and result dict
     soup = BeautifulSoup(html, "html.parser")
-    parsed = {}
+    parsed = {section: [] for section in sections}
 
+    # First try to find all section divs
+    section_divs = soup.find_all("div", class_="section")
+    
+    # If no section divs found, try alternative selectors
+    if not section_divs:
+        section_divs = soup.find_all("div", class_="results")
+    
     for section in sections:
-        block = soup.find(["h2", "h3"], string=re.compile(section, re.IGNORECASE))
-        if not block:
-            continue
+        section_found = False
+        
+        # Search through all section divs
+        for div in section_divs:
+            # Find the section header (h2)
+            header = div.find(["h2"], string=lambda text: section.lower() in text.lower() if text else False)
+            
+            if header:
+                section_found = True
+                # Get all text content within this section div
+                content = div.get_text(separator="\n", strip=True)
+                
+                # Generate specialized prompt for this section
+                prompt = f"""
+Extract specific technical options and parameters from the following medical device design input section.
+Device: {device_name}
+Intended Use: {intended_use}
+Section: {section}
 
-        results_div = block.find_parent().find("div", class_="results")
-        if not results_div:
-            continue
+Extract ONLY the following types of information as a Python list of strings:
 
-        text = results_div.get_text(separator=" ", strip=True)
+1. For Functional and Performance Requirements:
+   - Material specifications (e.g., "Ti-6Al-4V alloy", "316L stainless steel")
+   - Dimensional parameters (e.g., "32 mm length", "0.5-1.2 cm diameter")
+   - Mechanical properties (e.g., "Tensile strength ≥ 50 MPa")
+   - Performance standards (e.g., "ASTM F382", "ISO 7206")
 
-        prompt = f"""
-You are an expert in medical device documentation. Given the following section titled '{section}' for a device called '{device_name}' with intended use '{intended_use}', extract only the most relevant checklist options for downstream output generation.
+2. For Sterilization Requirements:
+   - Methods (e.g., "Ethylene Oxide", "Gamma radiation")
+   - Standards (e.g., "ISO 11135", "AAMI TIR28")
+   - Parameters (e.g., "SAL 10^-6", "25 kGy dose")
 
-Apply the following rules:
-- 'Functional and Performance Requirements': extract individual dimension values (like '32 mm', '34 mm') and unique material names (e.g., 'Ti-6Al-4V', 'UHMWPE').
-- 'Sterilization Requirements': extract only unique sterilization methods like EO, Steam, Gamma, Dry Heat (deduplicate similar terms like 'Ethylene Oxide' and 'EO').
-- 'Biological and Safety Requirements': extract both test names (e.g., 'Cytotoxicity', 'Sensitization') and corresponding standards (e.g., 'ISO 10993-5').
-- 'Packaging and Shipping Requirements': extract packaging types (e.g., Tyvek, Blister, Foil, Pouch) and transportation test names (e.g., ASTM D4169, Drop Test).
-- Other sections: extract relevant keywords like standards (e.g., ISO 13485), regulatory bodies (CDSCO, US FDA), or infrastructure terms (e.g., Cleanroom, GMP).
+3. For Biological Safety:
+   - Test names (e.g., "Cytotoxicity", "Sensitization")
+   - Standards (e.g., "ISO 10993-5", "USP <87>")
+   - Acceptance criteria (e.g., "Grade ≤ 2 cytotoxicity")
 
-Return the result as a clean Python list of strings without explanation or formatting.
+4. For Packaging:
+   - Materials (e.g., "Tyvek pouches", "PETG trays")
+   - Test methods (e.g., "ASTM F88 seal strength")
+   - Standards (e.g., "ISO 11607-1")
 
-Section content:
-{text}
+5. For Other Sections:
+   - Key requirements (e.g., "Cleanroom Class 8")
+   - Regulatory standards (e.g., "21 CFR 820")
+   - Critical parameters
+
+Return ONLY a Python list of specific items. No explanations or additional text.
+
+Section Content:
+{content}
 """
-
-        try:
-            response = await openai.ChatCompletion.acreate(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3
-            )
-            raw = response.choices[0].message.content
-            parsed[section] = eval(raw) if raw.strip().startswith("[") else []
-        except Exception as e:
-            parsed[section] = []
+                try:
+                    response = await openai.ChatCompletion.acreate(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3,
+                        max_tokens=1000
+                    )
+                    raw = response.choices[0].message.content.strip()
+                    
+                    # Safely parse the response
+                    if raw.startswith("[") and raw.endswith("]"):
+                        try:
+                            items = eval(raw)
+                            if isinstance(items, list):
+                                parsed[section] = items
+                        except:
+                            parsed[section] = []
+                except Exception as e:
+                    print(f"Error processing {section}: {str(e)}")
+                
+                break  # Move to next section once found
+        
+        if not section_found:
+            print(f"Section {section} not found in HTML")
 
     return {"parsed": parsed}
