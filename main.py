@@ -188,7 +188,7 @@ Only include one subsection:
 | Sr. No. | Standard Reference | Study Name | Study No. |
 |---------|--------------------|------------|-----------|
 
-- Include standard numbers (e.g., ISO 10993-5:2009, USP <87>, USP <88>, etc...).
+- Include standard numbers (e.g., ISO 10993-5, USP <87>, USP <88>, etc...).
 - Leave the "Study No." column blank.
 - Do not include any notes or extra text outside the table.
 """
@@ -912,7 +912,8 @@ async def extract_options(payload: dict):
         "ISO 17665": "Steam Sterilization",
         # Biocompatibility
         "ISO 10993-5": "Cytotoxicity Testing",
-        "ISO 10993-10": "Irritation/Sensitization Testing",
+        "ISO 10993-10": "Skin Sensitization Testing",
+        "ISO 10993-23": "Irritation Testing",
         "USP <87>": "In Vitro Cytotoxicity",
         "USP <88>": "In Vivo Biocompatibility",
         # Packaging
