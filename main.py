@@ -554,7 +554,7 @@ async def generate_word(data: DeviceRequest):
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5
                 ),
-                timeout=30
+                timeout=60
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[\*\#]+", "", raw)
@@ -723,7 +723,7 @@ async def generate_do_word(data: DOExportRequest):
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5
                 ),
-                timeout=30
+                timeout=60
             )
             raw = response.choices[0].message.content.strip()
             cleaned = re.sub(r"[#\*]+", "", raw)
