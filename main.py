@@ -982,7 +982,7 @@ async def extract_options(payload: dict):
                     """
                     
                     response = await openai.ChatCompletion.acreate(
-                        model="gpt-4",
+                        model="gpt-4o",
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.2,  # Lower temp for more consistent linking
                         max_tokens=600
