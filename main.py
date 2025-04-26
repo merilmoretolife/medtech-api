@@ -1,6 +1,3 @@
-
-
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -898,9 +895,9 @@ Current Section Content:
 
 @app.post("/extract-options")
 async def extract_options(payload: dict):
-    device_name = payload.get("deviceName")
-    intended_use = payload.get("intendedUse")
-    sections = payload.get("sections")
+    device_name = payload.get("deviceName", "")
+    intended_use = payload.get("intendedUse", "")
+    sections = payload.get("sections", [])
     html = payload.get("designInputHtml", "")
 
     parsed = {}
@@ -908,84 +905,149 @@ async def extract_options(payload: dict):
 
     for section in sections:
         parsed[section] = []
-
-    # Normalize section name to match the DOM ID format used in frontend
+        
+        # Normalize section name to match the DOM ID format
         normalized = section.replace(" ", "").replace("/", "").replace("-", "")
+        
+        # Find section div
         section_div = soup.find("div", {"id": f"section-block-{normalized}"})
+        if not section_div:
+            # Fallback to header search
+            header = soup.find(["h2", "h3"], string=lambda text: section.lower() in text.lower() if text else False)
+            if header:
+                section_div = header.find_parent("div")
+
         if not section_div:
             continue
 
+        # Find content div
         content_div = section_div.find("div", {"id": f"result-{normalized}"})
+        if not content_div:
+            content_div = section_div.find("div", class_=lambda x: x and "results" in x.lower()) or section_div
+
         if not content_div:
             continue
 
         text = content_div.get_text(separator=" ", strip=True)
 
-        # --- SMART RULES PER SECTION ---
+        # --- Section-Specific Extraction Rules ---
         if section == "Functional and Performance Requirements":
-            # Extract Dimensions from ranges like 5 mm – 10 mm (or hyphen variations)
+            # Extract dimensions (e.g., "5 mm - 10 mm")
             dim_matches = re.findall(r'(\d+(?:\.\d+)?)[\s\u2013\-to]+(\d+(?:\.\d+)?)\s*(mm|cm|in)', text)
             for start, end, unit in dim_matches:
                 try:
                     start, end = float(start), float(end)
-                    if end - start > 0 and (end - start) < 100:
+                    if 0 < (end - start) < 100:  # Reasonable range check
                         values = [f"{i:.0f} {unit}" for i in range(int(start), int(end)+1)]
                         parsed[section].extend(values)
                 except:
                     continue
 
-            # Also look for discrete dimensions
-            parsed[section] = list(set(parsed[section]))
+            # Extract materials (e.g., "316L stainless steel")
+            materials = re.findall(r'\b([A-Z][a-zA-Z\-]+\s*(?:alloy|steel|polymer|composite|ceramic|PEEK|PETG|UHMWPE|titanium))\b', text)
+            parsed[section].extend(materials)
 
         elif section == "Sterilization Requirements":
-            methods = ["EO", "Ethylene Oxide", "Gamma", "Dry Heat", "Steam", "Radiation"]
-            for m in methods:
-                if re.search(m, text, re.IGNORECASE):
-                    parsed[section].append(m)
+            # Standardized sterilization methods
+            methods_found = set()
+            method_mapping = {
+                "EO": "Ethylene Oxide",
+                "Ethylene Oxide": "Ethylene Oxide",
+                "Gamma": "Gamma Radiation", 
+                "Radiation": "Gamma Radiation",
+                "Steam": "Steam",
+                "Dry Heat": "Dry Heat"
+            }
+            
+            for term, standardized in method_mapping.items():
+                if re.search(rf'\b{term}\b', text, re.IGNORECASE):
+                    methods_found.add(standardized)
+            
+            parsed[section].extend(sorted(methods_found))
 
-        elif section == "Labeling and IFU Requirements":
-            if "symbol" in text.lower():
-                parsed[section].append("ISO Symbols")
-            if "e-IFU" in text or "electronic IFU" in text.lower():
-                parsed[section].append("e-IFU Compliance")
-            if "21 CFR" in text:
-                parsed[section].append("21 CFR Compliance")
-            if "EN ISO 15223" in text:
-                parsed[section].append("EN ISO 15223-1")
-
-        elif section == "Biological and Safety Requirements":
-            standards = re.findall(r"(ISO 10993-[\d]+|USP <[\d]+>)", text)
+            # Extract standards
+            standards = re.findall(r'(ISO\s*\d+[-]*\d*|AAMI\s*[A-Z]*\d+|USP\s*<\d+>)', text)
             parsed[section].extend(list(set(standards)))
 
+        elif section == "Labeling and IFU Requirements":
+            requirements = []
+            if "symbol" in text.lower():
+                requirements.append("ISO 15223-1 Symbols")
+            if "e-IFU" in text or "electronic IFU" in text.lower():
+                requirements.append("e-IFU")
+            if "21 CFR" in text:
+                requirements.append("US FDA Labeling")
+            
+            parsed[section].extend(requirements)
+
+        elif section == "Biological and Safety Requirements":
+            # Extract tests and standards
+            tests = set(re.findall(r'\b(Cytotoxicity|Sensitization|Irritation|Pyrogenicity|Hemocompatibility)\b', text, re.IGNORECASE))
+            standards = set(re.findall(r"(ISO 10993-[\d]+|USP <[\d]+>)", text))
+            
+            parsed[section].extend(sorted(tests.union(standards)))
+
         elif section == "Packaging and Shipping Requirements":
-            tests = ["ASTM D4169", "ASTM D5276", "ASTM D999", "IS 7028", "ISO 11607"]
-            for test in tests:
-                if test in text:
-                    parsed[section].append(test)
+            # Packaging types
+            packaging_types = set()
+            type_mapping = {
+                "Tyvek": "Tyvek Pouch",
+                "PETG": "PETG Tray",
+                "Aluminum": "Aluminum Pouch",
+                "Blister": "Blister Pack",
+                "Pouch": "Pouch",
+                "Foil": "Foil Pouch"
+            }
+            
+            for term, display in type_mapping.items():
+                if re.search(rf'\b{term}\b', text, re.IGNORECASE):
+                    packaging_types.add(display)
+            
+            parsed[section].extend(sorted(packaging_types))
+
+            # Transportation tests
+            tests = ["ASTM D4169", "ASTM D5276", "ASTM D999", "ISO 11607"]
+            parsed[section].extend([t for t in tests if t in text])
 
         elif section == "Stability / Shelf Life Requirements":
+            requirements = []
             if "accelerated aging" in text.lower():
-                parsed[section].append("Accelerated Aging")
+                requirements.append("Accelerated Aging")
             if "real-time" in text.lower():
-                parsed[section].append("Real-Time Stability")
+                requirements.append("Real-Time Stability")
+            if "ASTM F1980" in text:
+                requirements.append("ASTM F1980")
+            
+            parsed[section].extend(requirements)
 
         elif section == "Manufacturing Requirements":
+            requirements = []
             if "ISO 13485" in text:
-                parsed[section].append("ISO 13485 Compliance")
+                requirements.append("ISO 13485 QMS")
             if "cleanroom" in text.lower():
-                parsed[section].append("Cleanroom Infrastructure")
+                requirements.append("Cleanroom")
             if "gmp" in text.lower():
-                parsed[section].append("GMP Compliance")
+                requirements.append("GMP")
+            if "21 CFR" in text:
+                requirements.append("21 CFR Part 820")
+            
+            parsed[section].extend(requirements)
 
         elif section == "Statutory and Regulatory Requirements":
+            requirements = set()
+            
+            # Consolidated CE Marking/EU MDR
+            if any(x in text for x in ["EU MDR", "Regulation (EU) 2017/745", "CE Mark", "CE marking"]):
+                requirements.add("EU MDR (CE Marking)")
+            
             if "cdsco" in text.lower():
-                parsed[section].append("CDSCO India")
-            if "EU MDR" in text or "Regulation (EU) 2017/745" in text:
-                parsed[section].append("EU MDR Compliance")
-            if "FDA" in text or "510(k)" in text or "21 CFR" in text:
-                parsed[section].append("US FDA")
+                requirements.add("CDSCO (India)")
+            if any(x in text for x in ["FDA", "510(k)", "21 CFR"]):
+                requirements.add("US FDA")
+            
+            parsed[section].extend(sorted(requirements))
 
-        # Cleanup duplicates
-        parsed[section] = list(sorted(set(parsed[section])))
+        # Final cleanup
+        parsed[section] = sorted(list(set(parsed[section])))
 
     return {"parsed": parsed}
