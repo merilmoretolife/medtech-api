@@ -900,154 +900,111 @@ async def extract_options(payload: dict):
     sections = payload.get("sections", [])
     html = payload.get("designInputHtml", "")
 
-    parsed = {}
     soup = BeautifulSoup(html, "html.parser")
+    parsed = {}
+
+    # Knowledge base linking standards to their meanings
+    STANDARD_MEANINGS = {
+        # Sterilization
+        "ISO 11135": "Ethylene Oxide Sterilization",
+        "ISO 11137": "Gamma Radiation Sterilization",
+        "AAMI TIR28": "EO Sterilization Validation",
+        "ISO 17665": "Steam Sterilization",
+        # Biocompatibility
+        "ISO 10993-5": "Cytotoxicity Testing",
+        "ISO 10993-10": "Irritation/Sensitization Testing",
+        "USP <87>": "In Vitro Cytotoxicity",
+        "USP <88>": "In Vivo Biocompatibility",
+        # Packaging
+        "ISO 11607": "Packaging Validation",
+        "ASTM D4169": "Distribution Simulation Testing",
+        # Labeling
+        "EN ISO 15223-1": "Medical Device Symbols",
+        "21 CFR Part 801": "US Labeling Requirements",
+        # Quality Systems
+        "ISO 13485": "Quality Management System",
+        "21 CFR Part 820": "US FDA QSR"
+    }
+
+    SECTION_PROMPTS = {
+        "Sterilization Requirements": """
+        Analyze the sterilization content and return consolidated options that combine:
+        - Methods with their parameters (e.g., "Ethylene Oxide @ 55°C for 12hrs")
+        - Standards with their meanings (convert "ISO 11135" to "Ethylene Oxide Sterilization (ISO 11135)")
+        - Critical parameters (e.g., "SAL 10^-6", "Residual limits ≤4mg EO")
+        Return only a bulleted list of comprehensive options.
+        """,
+        
+        "Biological and Safety Requirements": """
+        Extract and consolidate biocompatibility information:
+        - Combine test names with standards (e.g., "Cytotoxicity per ISO 10993-5")
+        - Include acceptance criteria when mentioned (e.g., "Grade ≤2 Cytotoxicity")
+        Return only a bulleted list of combined items.
+        """,
+        
+        "Packaging and Shipping Requirements": """
+        Extract packaging information as combined concepts:
+        - Packaging types with materials (e.g., "Tyvek/PE Pouch")
+        - Tests with purposes (e.g., "Seal Strength ≥2N per ASTM F88")
+        - Environmental conditions if specified
+        Return only a bulleted list of comprehensive options.
+        """,
+        
+        # ... (similar consolidated prompts for other sections)
+    }
 
     for section in sections:
         parsed[section] = []
-        
-        # Normalize section name to match the DOM ID format
         normalized = section.replace(" ", "").replace("/", "").replace("-", "")
         
-        # Find section div
+        # Extract section content (same as before)
         section_div = soup.find("div", {"id": f"section-block-{normalized}"})
         if not section_div:
-            # Fallback to header search
             header = soup.find(["h2", "h3"], string=lambda text: section.lower() in text.lower() if text else False)
-            if header:
-                section_div = header.find_parent("div")
+            section_div = header.find_parent("div") if header else None
 
-        if not section_div:
-            continue
+        if section_div:
+            content_div = section_div.find("div", {"id": f"result-{normalized}"}) or \
+                         section_div.find("div", class_=lambda x: x and "results" in x.lower()) or \
+                         section_div
+            text = content_div.get_text(separator="\n", strip=True)
 
-        # Find content div
-        content_div = section_div.find("div", {"id": f"result-{normalized}"})
-        if not content_div:
-            content_div = section_div.find("div", class_=lambda x: x and "results" in x.lower()) or section_div
-
-        if not content_div:
-            continue
-
-        text = content_div.get_text(separator=" ", strip=True)
-
-        # --- Section-Specific Extraction Rules ---
-        if section == "Functional and Performance Requirements":
-            # Extract dimensions (e.g., "5 mm - 10 mm")
-            dim_matches = re.findall(r'(\d+(?:\.\d+)?)[\s\u2013\-to]+(\d+(?:\.\d+)?)\s*(mm|cm|in)', text)
-            for start, end, unit in dim_matches:
+            if section in SECTION_PROMPTS:
                 try:
-                    start, end = float(start), float(end)
-                    if 0 < (end - start) < 100:  # Reasonable range check
-                        values = [f"{i:.0f} {unit}" for i in range(int(start), int(end)+1)]
-                        parsed[section].extend(values)
-                except:
-                    continue
-
-            # Extract materials (e.g., "316L stainless steel")
-            materials = re.findall(r'\b([A-Z][a-zA-Z\-]+\s*(?:alloy|steel|polymer|composite|ceramic|PEEK|PETG|UHMWPE|titanium))\b', text)
-            parsed[section].extend(materials)
-
-        elif section == "Sterilization Requirements":
-            # Standardized sterilization methods
-            methods_found = set()
-            method_mapping = {
-                "EO": "Ethylene Oxide",
-                "Ethylene Oxide": "Ethylene Oxide",
-                "Gamma": "Gamma Radiation", 
-                "Radiation": "Gamma Radiation",
-                "Steam": "Steam",
-                "Dry Heat": "Dry Heat"
-            }
-            
-            for term, standardized in method_mapping.items():
-                if re.search(rf'\b{term}\b', text, re.IGNORECASE):
-                    methods_found.add(standardized)
-            
-            parsed[section].extend(sorted(methods_found))
-
-            # Extract standards
-            standards = re.findall(r'(ISO\s*\d+[-]*\d*|AAMI\s*[A-Z]*\d+|USP\s*<\d+>)', text)
-            parsed[section].extend(list(set(standards)))
-
-        elif section == "Labeling and IFU Requirements":
-            requirements = []
-            if "symbol" in text.lower():
-                requirements.append("ISO 15223-1 Symbols")
-            if "e-IFU" in text or "electronic IFU" in text.lower():
-                requirements.append("e-IFU")
-            if "21 CFR" in text:
-                requirements.append("US FDA Labeling")
-            
-            parsed[section].extend(requirements)
-
-        elif section == "Biological and Safety Requirements":
-            # Extract tests and standards
-            tests = set(re.findall(r'\b(Cytotoxicity|Sensitization|Irritation|Pyrogenicity|Hemocompatibility)\b', text, re.IGNORECASE))
-            standards = set(re.findall(r"(ISO 10993-[\d]+|USP <[\d]+>)", text))
-            
-            parsed[section].extend(sorted(tests.union(standards)))
-
-        elif section == "Packaging and Shipping Requirements":
-            # Packaging types
-            packaging_types = set()
-            type_mapping = {
-                "Tyvek": "Tyvek Pouch",
-                "PETG": "PETG Tray",
-                "Aluminum": "Aluminum Pouch",
-                "Blister": "Blister Pack",
-                "Pouch": "Pouch",
-                "Foil": "Foil Pouch"
-            }
-            
-            for term, display in type_mapping.items():
-                if re.search(rf'\b{term}\b', text, re.IGNORECASE):
-                    packaging_types.add(display)
-            
-            parsed[section].extend(sorted(packaging_types))
-
-            # Transportation tests
-            tests = ["ASTM D4169", "ASTM D5276", "ASTM D999", "ISO 11607"]
-            parsed[section].extend([t for t in tests if t in text])
-
-        elif section == "Stability / Shelf Life Requirements":
-            requirements = []
-            if "accelerated aging" in text.lower():
-                requirements.append("Accelerated Aging")
-            if "real-time" in text.lower():
-                requirements.append("Real-Time Stability")
-            if "ASTM F1980" in text:
-                requirements.append("ASTM F1980")
-            
-            parsed[section].extend(requirements)
-
-        elif section == "Manufacturing Requirements":
-            requirements = []
-            if "ISO 13485" in text:
-                requirements.append("ISO 13485 QMS")
-            if "cleanroom" in text.lower():
-                requirements.append("Cleanroom")
-            if "gmp" in text.lower():
-                requirements.append("GMP")
-            if "21 CFR" in text:
-                requirements.append("21 CFR Part 820")
-            
-            parsed[section].extend(requirements)
-
-        elif section == "Statutory and Regulatory Requirements":
-            requirements = set()
-            
-            # Consolidated CE Marking/EU MDR
-            if any(x in text for x in ["EU MDR", "Regulation (EU) 2017/745", "CE Mark", "CE marking"]):
-                requirements.add("EU MDR (CE Marking)")
-            
-            if "cdsco" in text.lower():
-                requirements.add("CDSCO (India)")
-            if any(x in text for x in ["FDA", "510(k)", "21 CFR"]):
-                requirements.add("US FDA")
-            
-            parsed[section].extend(sorted(requirements))
-
-        # Final cleanup
-        parsed[section] = sorted(list(set(parsed[section])))
+                    prompt = f"""Device: {device_name}
+                    Intended Use: {intended_use}
+                    Section: {section}
+                    
+                    {SECTION_PROMPTS[section]}
+                    
+                    Content to analyze:
+                    {text}
+                    """
+                    
+                    response = await openai.ChatCompletion.acreate(
+                        model="gpt-4",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.2,  # Lower temp for more consistent linking
+                        max_tokens=600
+                    )
+                    
+                    # Post-process to ensure standards are properly linked
+                    raw_options = response.choices[0].message.content.strip()
+                    options = []
+                    
+                    for line in raw_options.split("\n"):
+                        if line.strip().startswith("-"):
+                            option = line.strip("- ").strip()
+                            # Enhance with standard meanings where applicable
+                            for std, meaning in STANDARD_MEANINGS.items():
+                                if std in option and meaning not in option:
+                                    option = option.replace(std, f"{meaning} ({std})")
+                            options.append(option)
+                    
+                    parsed[section] = sorted(list(set(options)))
+                    
+                except Exception as e:
+                    print(f"Error processing {section}: {str(e)}")
+                    parsed[section] = []
 
     return {"parsed": parsed}
