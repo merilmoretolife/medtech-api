@@ -1009,3 +1009,8 @@ async def extract_options(payload: dict):
                     parsed[section] = []
 
     return {"parsed": parsed}
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return {"message": "API running fine!"}
+
