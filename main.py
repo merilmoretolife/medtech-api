@@ -26,7 +26,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://merilmoretolife.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1011,6 +1011,7 @@ async def extract_options(payload: dict):
 
     return {"parsed": parsed}
 
-@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+@app.get("/")
 async def root():
-    return {"message": "API running fine!"}
+    return {"message": "Backend is awake!"}
+
