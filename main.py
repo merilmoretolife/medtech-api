@@ -20,6 +20,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 import datetime
 from bs4 import BeautifulSoup
+from fastapi import APIRouter
 
 app = FastAPI()
 
@@ -1010,7 +1011,6 @@ async def extract_options(payload: dict):
 
     return {"parsed": parsed}
 
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def root():
     return {"message": "API running fine!"}
-
