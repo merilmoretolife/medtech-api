@@ -85,69 +85,69 @@ def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
     instructions = {
         "Functional and Performance Requirements": f"""
 Include the following:
-1. Material of Construction – List main materials and cite relevant ASTM/ISO standards based on the device type.
-2. Component Design and Dimension – Define critical design features and tolerances.
-3. Mechanical Properties and tests with relevant/applicable USP/ISO/ASTM,etc. standards.
-Tailor content based on whether the device is an implant, instrument, or external device.
+1. Material of Construction – List primary materials based on device type (e.g., USP Class VI polymers for disposables, titanium for implants), and cite applicable ISO/ASTM standards (e.g., ISO 5832 for metals, ASTM D638 for plastics).
+2. Component Design and Dimension – Define critical design features (shape, locking mechanisms, etc.) and dimensional tolerances. Avoid unnecessary tolerances for flexible devices.
+3. Mechanical Properties – List required mechanical characteristics (e.g., tensile strength, elongation, fatigue) with relevant USP/ISO/ASTM test methods (e.g., USP <881> for sutures, ISO 7206 for hip stems).
+Tailor based on whether the device is an implant, surgical tool, or single-use item — and exclude irrelevant tests (e.g., wear for sutures).
 """,
 
         "Biological and Safety Requirements": f"""
 Include:
-1. Raw Material Compatibility – Mention inertness, sterilization tolerance, and chemical compatibility.
-2. Biological Safety – Address cytotoxicity, irritation, sensitization, systemic effects.
-3. Biocompatibility Tests Required – Based on ISO 10993-1 and contact duration, list applicable tests from ISO 10993 series and USP <87>/<88>.
-4. Applicable Standards – List ISO 10993-1 and USP references only here.
-Base all content on the nature, location, and duration of contact.
+1. Raw Material Compatibility – Confirm material inertness and compatibility with sterilization methods and body fluids. Avoid leachables/extractables where possible.
+2. Biological Safety – Address risks such as cytotoxicity, irritation, sensitization, and systemic toxicity based on the contact duration and invasiveness.
+3. Biocompatibility Tests Required – Based on ISO 10993-1 contact categorization, list applicable tests (e.g., ISO 10993-5 for cytotoxicity, ISO 10993-10 for irritation, USP <87>/<88> for Class VI plastics).
+4. Applicable Standards – Include ISO 10993-1, 10993-5/10/11 and relevant USP references only.
+Tailor tests to whether the device has intact/external surface contact, mucosal contact, or blood/tissue contact.
 """,
 
         "Labeling and IFU Requirements": f"""
 Include:
-1. Label Information – List key product identifiers (name, code, lot, expiry, symbols).
-2. Labeling Standards – Mention EN ISO 15223-1, EN ISO 20417, 21 CFR 801.109, ISO 14630.
-3. IFU and e-IFU Requirements – Include indication, warnings, usage, multilingual needs, and digital/e-IFU compliance under EU Regulation 207/2012.
-Tailor label/IFU fields based on region and class.
+1. Label Information – List required fields: device name, model/code, batch/lot number, expiration date, UDI (if required), and relevant symbols (sterile, single-use, CE, etc.).
+2. Labeling Standards – Use EN ISO 15223-1 (symbols), ISO 20417 (general labeling), 21 CFR Part 801.109 (prescription devices), ISO 14630 (generic device requirements).
+3. IFU and e-IFU Requirements – Define content: intended use, contraindications, warnings, step-by-step use, storage, cleaning (if applicable), multilingual support. For EU, follow Regulation (EU) 2021/2226 for e-IFU.
+Tailor label/IFU content based on risk class and jurisdiction (e.g., EU MDR, US FDA).
 """,
 
         "Sterilization Requirements": f"""
 Include:
-1. Sterilization Method – Recommend EO, Steam, Gamma, or others based on material.
-2. Applicable Standards – ISO 11135, ISO 11137, ISO 17665, ISO 10993-7, ISO 11737-1/2, USP <71>, <85>, <61>.
-3. Required Tests – Bioburden, SAL 10⁻⁶, residuals, endotoxins, seal integrity.
-Ensure compatibility with device sensitivity and configuration.
+1. Sterilization Method – Recommend suitable method based on material and configuration: EO for heat-sensitive polymers, Steam for metallic instruments, Gamma for sealed disposables. List only validated and compatible methods.
+2. Applicable Standards – ISO 11135 (EO), ISO 11137-1/2 (Gamma), ISO 17665 (Steam), ISO 10993-7 (EO residuals), ISO 11737-1/2 (bioburden/sterility), USP <71> (sterility), USP <85>/<61> (endotoxins, microbiological).
+3. Required Tests – Specify SAL (10⁻⁶), bioburden limits, residual gas levels (EO ≤ 4 mg/device), and endotoxin thresholds (≤ 0.5 EU/ml or per device). Include seal integrity tests (e.g., ASTM F1929/F2096 if pouch-based).
+Ensure sterilization cycle is validated for worst-case load and device geometry.
 """,
 
         "Stability / Shelf Life Requirements": f"""
 Include:
-1. Shelf Life Objective – Specify target duration based on comparable products.
-2. Factors Impacting Stability – Temperature, humidity, UV exposure, packaging.
-3. Stability Study – Real-time and accelerated aging (ASTM F1980), post-aging validation.
-4. Applicable Standards – ASTM F1980, ISO 11607-1, ICH Q1A(R2).
+1. Shelf Life Objective – Define intended shelf life (e.g., 2–3 years) based on market precedent or device risk (higher risk may require more data).
+2. Factors Impacting Stability – Include temperature, humidity, light, packaging barrier degradation, material leachability or brittleness over time.
+3. Stability Study – Outline accelerated aging (ASTM F1980) and real-time aging protocols. Include post-aging validation: packaging integrity (ASTM F88/F1929), sterility maintenance, and mechanical/functional properties.
+4. Applicable Standards – ASTM F1980 (aging), ISO 11607-1 (packaging), ICH Q1A(R2) (stability guidelines for medical use).
 """,
 
         "Packaging and Shipping Requirements": f"""
 Include:
-1. Packaging Objectives – Protect from light, moisture, contamination, damage, maintain sterility.
-2. Packaging Materials – Detail materials used (Tyvek, foil, blister), and barrier properties.
-3. Packaging Configuration – Describe primary, secondary, tertiary setup and inclusion of IFU.
-4. Standards – EN ISO 11607-1/2, ASTM F88.
-Adjust for product fragility, sterility, and logistics.
+1. Packaging Objectives – Ensure product protection from mechanical stress, microbial contamination, and environmental exposure (light, humidity). Maintain sterility if sterile. Prevent delamination or crushing during transit.
+2. Packaging Materials – Specify medical-grade materials: Tyvek®-poly pouches, aluminum foil packs, rigid PET blisters. Justify based on device fragility and barrier needs.
+3. Packaging Configuration – Describe layers: primary (sterile pouch), secondary (IFU, pouch in carton), tertiary (shipping box with shock absorbers).
+4. Standards – EN ISO 11607-1/2 (packaging system validation), ASTM F88 (seal strength), ASTM D4169 (distribution simulation).
+Tailor packaging for transport method, shelf life, and regional labeling regulations.
 """,
 
         "Manufacturing Requirements": f"""
 Include:
-1. Facility Infrastructure – GMP design: epoxy flooring, HEPA filters, material finishes.
-2. Cleanroom Classification – ISO Class 8 or better depending on operation.
-3. Equipment and Sanitation – GMP-compliant equipment, cleaning protocols.
-4. QC and Storage – Environmental control, microbiology lab, USP testing capability.
-Standards: ISO 13485, 21 CFR Part 820.
+1. Facility Infrastructure – Comply with GMP layout: seamless epoxy flooring, covings, anti-shedding ceilings, filtered HVAC.
+2. Cleanroom Classification – ISO Class 8 or better based on operation. Sterile packaging requires ISO Class 7 or 5 for open product exposure.
+3. Equipment and Sanitation – Use validated GMP-grade equipment with stainless steel surfaces (e.g., SS316). Define validated cleaning and sanitation SOPs. Maintain pest control and personnel hygiene protocols.
+4. QC and Storage – Include controlled ambient/temp storage, material traceability, environmental monitoring. Confirm in-house or third-party microbiological/chemical testing capability (e.g., USP methods).
+Standards: ISO 13485 (QMS), 21 CFR 820 (US FDA QSR).
 """,
 
         "Statutory and Regulatory Requirements": f"""
 Include:
-1. Indian Regulatory – CDSCO rules, classification (A–D), MD-13, MD-9, ISO 13485.
-2. EU Regulatory – CE Marking, Detailed EU MDR classification (Class and Rule) from https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32017R0745, GSPR, Technical File, ISO 13485.
-3. US FDA – Class I/II/III, 510(k)/PMA, QSR (21 CFR Part 820), Establishment Registration.
-Tailor classification and pathways based on device use and risk.
+1. Indian Regulatory – Classify device per CDSCO (A–D) rules. Include license (Form MD-5/6/9/10), registration via CDSCO portal, and ISO 13485 compliance.
+2. EU Regulatory – Determine MDR classification (Class I/IIa/IIb/III) and rule per Annex VIII of Regulation (EU) 2017/745. Prepare CE Technical File, GSPR Checklist, and Declaration of Conformity. Include ISO 13485 QMS and vigilance/post-market obligations.
+3. US FDA – Identify device classification (I/II/III), required submission (510(k), PMA, De Novo), and compliance with 21 CFR Part 820. Include Establishment Registration, Device Listing, and UDI system.
+Tailor all based on risk, invasiveness, and market route.
 """
     }
 
