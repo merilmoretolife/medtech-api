@@ -86,10 +86,10 @@ def generate_prompt(device_name: str, intended_use: str, section: str) -> str:
     instructions = {
         "Functional and Performance Requirements": f"""
 Include the following:
-1. Material of Construction – List main materials and cite relevant ASTM/ISO standards based on the device type.
-2. Component Design and Dimension – Define critical design features and tolerances.
-3. Mechanical Properties - List Mechanical tests (e.g. wear/tear for implants, tensile/elongation for sutures, etc.) with relevant/applicable USP/ISO/ASTM,etc. standards.
-Tailor content based on whether the device is an implant, instrument, or external device.
+1. Material of Construction – List main materials and cite relevant ASTM/ISO standards based on the device type. Prepare component wise if device has various components. 
+2. Component Design and Dimension – Define critical design features and tolerances. Prepare component wise if device has various components. 
+3. Mechanical Properties - List Mechanical tests (e.g. wear/tear for implants, tensile/elongation for sutures, etc.) with relevant/applicable USP/ISO/ASTM,etc. standards. Prepare component wise if device has various components. 
+Tailor content based on whether the device is an implant, instrument, or external device. Prepare component wise if device has various components. 
 """,
 
         "Biological and Safety Requirements": f"""
